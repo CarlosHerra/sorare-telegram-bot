@@ -1,0 +1,17 @@
+{
+  "name": "sorare-price-alerts",
+  "version": "1.0.0",
+  "description": "Root package for Sorare Price Alerts",
+  "main": "index.js",
+  "scripts": {
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd client && npm install && npm run build",
+    "start": "node server/index.js",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

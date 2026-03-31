@@ -4,9 +4,20 @@ import AlertList from './components/AlertList';
 
 function App() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [editingAlert, setEditingAlert] = useState(null);
 
     const handleAlertCreated = () => {
         setRefreshTrigger(prev => prev + 1);
+        setEditingAlert(null);
+    };
+
+    const handleEdit = (alert) => {
+        setEditingAlert(alert);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleCancelEdit = () => {
+        setEditingAlert(null);
     };
 
     return (
@@ -26,8 +37,15 @@ function App() {
             </header>
 
             <main className="max-w-4xl mx-auto space-y-8">
-                <AlertForm onAlertCreated={handleAlertCreated} />
-                <AlertList refreshTrigger={refreshTrigger} />
+                <AlertForm
+                    onAlertCreated={handleAlertCreated}
+                    editingAlert={editingAlert}
+                    onCancelEdit={handleCancelEdit}
+                />
+                <AlertList
+                    refreshTrigger={refreshTrigger}
+                    onEdit={handleEdit}
+                />
             </main>
 
             <footer className="max-w-4xl mx-auto mt-20 text-center text-sorare-muted text-sm pb-10">

@@ -1,4 +1,5 @@
 const { GraphQLClient, gql } = require('graphql-request');
+const { getGbpToEurRate } = require('./exchange');
 
 const ENDPOINT = 'https://api.sorare.com/graphql';
 
@@ -23,6 +24,7 @@ const QUERY = gql`
                 amounts {
                   eurCents
                   usdCents
+                  gbpCents
                   wei
                 }
               }
@@ -93,6 +95,18 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
     } else if (amounts.usdCents) {
       price = parseFloat(amounts.usdCents) / 100;
       currency = 'USD';
+    } else if (amounts.gbpCents) {
+      const gbpPrice = parseFloat(amounts.gbpCents) / 100;
+      const rate = await getGbpToEurRate();
+      if (rate) {
+        price = gbpPrice * rate;
+        currency = 'EUR'; // Converted
+        console.log(`Converted ${gbpPrice} GBP to ${price} EUR (Rate: ${rate})`);
+      } else {
+        // Fallback if rate fails, just return GBP
+        price = gbpPrice;
+        currency = 'GBP';
+      }
     }
 
     if (price === null) {

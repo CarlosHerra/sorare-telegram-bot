@@ -24,7 +24,8 @@ async function initDb() {
       priceThreshold REAL NOT NULL,
       currency TEXT DEFAULT 'ETH',
       telegramChatId TEXT NOT NULL,
-      season INTEGER
+      season INTEGER,
+      version INTEGER DEFAULT 1
     )
   `);
 
@@ -35,15 +36,47 @@ async function initDb() {
       alertId INTEGER NOT NULL,
       cardSlug TEXT NOT NULL,
       dateSent TEXT NOT NULL,
-      UNIQUE(alertId, cardSlug, dateSent)
+      alertVersion INTEGER DEFAULT 1,
+      UNIQUE(alertId, cardSlug, dateSent, alertVersion)
     )
   `);
 
+  // Migrations for existing tables
   try {
     await db.run('ALTER TABLE alerts ADD COLUMN season INTEGER');
     console.log('Added season column to alerts table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE alerts ADD COLUMN version INTEGER DEFAULT 1');
+    console.log('Added version column to alerts table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE sent_alerts ADD COLUMN alertVersion INTEGER DEFAULT 1');
+    console.log('Added alertVersion column to sent_alerts table');
+
+    // SQLite doesn't support easy ALTER TABLE to change UNIQUE constraints.
+    // For this simple app, we'll recreate the sent_alerts table if the constraint is old,
+    // or just rely on the new column being part of the check logic.
+    // To properly update the UNIQUE constraint:
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS sent_alerts_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        alertId INTEGER NOT NULL,
+        cardSlug TEXT NOT NULL,
+        dateSent TEXT NOT NULL,
+        alertVersion INTEGER DEFAULT 1,
+        UNIQUE(alertId, cardSlug, dateSent, alertVersion)
+      );
+      INSERT OR IGNORE INTO sent_alerts_new (id, alertId, cardSlug, dateSent, alertVersion)
+      SELECT id, alertId, cardSlug, dateSent, COALESCE(alertVersion, 1) FROM sent_alerts;
+      DROP TABLE sent_alerts;
+      ALTER TABLE sent_alerts_new RENAME TO sent_alerts;
+    `);
+    console.log('Migrated sent_alerts table with new UNIQUE constraint');
   } catch (e) {
-    // Ignore error if column already exists
+    // If it fails (e.g. column already exists), we just continue
   }
 
   console.log('Database initialized');

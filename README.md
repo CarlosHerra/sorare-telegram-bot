@@ -47,12 +47,19 @@ PORT=3001
 # In the root directory
 npm run dev
 ```
+In development mode:
+- **Frontend**: [http://localhost:5173](http://localhost:5173) (Vite dev server)
+- **Backend (API)**: [http://localhost:3001](http://localhost:3001)
 
 ### 5. Build for Production
 ```bash
+# Build the frontend
 npm run build
+
+# Start the combined server
 $env:NODE_ENV="production"; npm start
 ```
+In production mode, the backend serves the frontend from the `client/dist` folder. You can access the entire app at [http://localhost:3001](http://localhost:3001) (or your configured `PORT`).
 
 ## 📦 Project Structure
 

@@ -46,6 +46,32 @@ router.delete('/alerts/:id', async (req, res) => {
     res.json({ message: 'Alert deleted' });
 });
 
+// PUT update alert
+router.put('/alerts/:id', async (req, res) => {
+    const { id } = req.params;
+    const { rarity, priceThreshold, currency, telegramChatId, season } = req.body;
+
+    if (!rarity || !priceThreshold || !telegramChatId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const db = await getDb();
+
+    // Update the alert and increment version to reset daily cooldown
+    const result = await db.run(
+        `UPDATE alerts 
+         SET rarity = ?, priceThreshold = ?, currency = ?, telegramChatId = ?, season = ?, version = version + 1 
+         WHERE id = ?`,
+        [rarity, priceThreshold, currency || 'ETH', telegramChatId, season || null, id]
+    );
+
+    if (result.changes === 0) {
+        return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    res.json({ message: 'Alert updated and cooldown reset', id });
+});
+
 // Telegram Connection Routes
 router.get('/telegram/bot-info', async (req, res) => {
     const botInfo = await getMe();

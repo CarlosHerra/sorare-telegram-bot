@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PlayerSearch from './PlayerSearch';
 
-export default function AlertForm({ onAlertCreated }) {
+export default function AlertForm({ onAlertCreated, editingAlert, onCancelEdit }) {
     const [formData, setFormData] = useState({
         player: null,
         rarity: 'limited',
@@ -16,6 +16,28 @@ export default function AlertForm({ onAlertCreated }) {
     const [connectionCode, setConnectionCode] = useState('');
     const [botUsername, setBotUsername] = useState('');
     const [pollInterval, setPollInterval] = useState(null);
+
+    // Populate form when editingAlert changes
+    useEffect(() => {
+        if (editingAlert) {
+            setFormData({
+                player: { slug: editingAlert.playerSlug, displayName: editingAlert.playerSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') },
+                rarity: editingAlert.rarity,
+                priceThreshold: editingAlert.priceThreshold.toString(),
+                currency: editingAlert.currency,
+                season: editingAlert.season || '',
+                telegramChatId: editingAlert.telegramChatId
+            });
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                player: null,
+                priceThreshold: '',
+                season: ''
+            }));
+            setFormKey(prev => prev + 1);
+        }
+    }, [editingAlert]);
 
     useEffect(() => {
         return () => {
@@ -78,39 +100,56 @@ export default function AlertForm({ onAlertCreated }) {
             // Remove the full player object from payload
             delete payload.player;
 
-            const response = await fetch('/api/alerts', {
-                method: 'POST',
+            const url = editingAlert ? `/api/alerts/${editingAlert.id}` : '/api/alerts';
+            const method = editingAlert ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
             if (response.ok) {
                 if (onAlertCreated) onAlertCreated();
-                setFormData({
-                    player: null,
-                    rarity: 'limited',
-                    priceThreshold: '',
-                    currency: 'EUR',
-                    season: '',
-                    telegramChatId: formData.telegramChatId // Keep the chat ID
-                });
-                // Let's use a key hack for now to reset PlayerSearch.
-                setFormKey(prev => prev + 1);
 
-                alert('Alert Created Successfully! 🚀');
+                if (!editingAlert) {
+                    setFormData({
+                        player: null,
+                        rarity: 'limited',
+                        priceThreshold: '',
+                        currency: 'EUR',
+                        season: '',
+                        telegramChatId: formData.telegramChatId // Keep the chat ID
+                    });
+                    // Let's use a key hack for now to reset PlayerSearch.
+                    setFormKey(prev => prev + 1);
+                }
+
+                alert(editingAlert ? 'Alert Updated! 🚀' : 'Alert Created Successfully! 🚀');
             } else {
-                alert('Failed to create alert');
+                alert('Failed to process alert');
             }
         } catch (error) {
-            console.error('Error creating alert:', error);
+            console.error('Error processing alert:', error);
         }
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-sorare-card border border-sorare-border p-8 rounded-2xl shadow-2xl mb-12 animate-slide-up">
-            <h2 className="text-2xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-sorare-accent to-sorare-secondary">
-                Create New Price Alert
-            </h2>
+        <form onSubmit={handleSubmit} className={`bg-sorare-card border ${editingAlert ? 'border-sorare-accent shadow-sorare-accent/20 scale-102 transition-all duration-500' : 'border-sorare-border'} p-8 rounded-2xl shadow-2xl mb-12 animate-slide-up`}>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-sorare-accent to-sorare-secondary">
+                    {editingAlert ? 'Edit Price Alert' : 'Create New Price Alert'}
+                </h2>
+                {editingAlert && (
+                    <button
+                        type="button"
+                        onClick={onCancelEdit}
+                        className="text-sorare-muted hover:text-white transition-colors text-sm font-bold flex items-center gap-1"
+                    >
+                        ✕ CANCEL EDIT
+                    </button>
+                )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
@@ -237,7 +276,7 @@ export default function AlertForm({ onAlertCreated }) {
                 type="submit"
                 className="mt-8 w-full bg-gradient-to-r from-sorare-accent to-sorare-secondary hover:opacity-90 transform hover:-translate-y-0.5 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg shadow-sorare-accent/20"
             >
-                Start Tracking
+                {editingAlert ? 'Save Changes' : 'Start Tracking'}
             </button>
         </form>
     );

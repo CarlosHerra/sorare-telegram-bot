@@ -22,7 +22,7 @@ async function checkAlerts() {
     console.log(`Current ETH/EUR Rate: ${ethToEur}`);
 
     for (const alert of alerts) {
-        const { id, playerSlug, rarity, priceThreshold, currency, telegramChatId, season } = alert;
+        const { id, playerSlug, rarity, priceThreshold, currency, telegramChatId, season, version } = alert;
 
         const currentData = await getCardPrice(playerSlug, rarity, season);
 
@@ -67,14 +67,14 @@ async function checkAlerts() {
                 const cardSlug = currentData.cardSlug;
                 const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
-                // Check if we already sent an alert today for this alert + card combination
+                // Check if we already sent an alert today for this alert + card + version combination
                 const existingAlert = await db.get(
-                    'SELECT id FROM sent_alerts WHERE alertId = ? AND cardSlug = ? AND dateSent = ?',
-                    [id, cardSlug, today]
+                    'SELECT id FROM sent_alerts WHERE alertId = ? AND cardSlug = ? AND dateSent = ? AND alertVersion = ?',
+                    [id, cardSlug, today, version || 1]
                 );
 
                 if (existingAlert) {
-                    console.log(`Alert for ${playerSlug} (${cardSlug}) already sent today, skipping.`);
+                    console.log(`Alert for ${playerSlug} (${cardSlug}) [v${version || 1}] already sent today, skipping.`);
                     continue;
                 }
 
@@ -92,8 +92,8 @@ async function checkAlerts() {
 
                 // Record that we sent this alert today
                 await db.run(
-                    'INSERT OR IGNORE INTO sent_alerts (alertId, cardSlug, dateSent) VALUES (?, ?, ?)',
-                    [id, cardSlug, today]
+                    'INSERT OR IGNORE INTO sent_alerts (alertId, cardSlug, dateSent, alertVersion) VALUES (?, ?, ?, ?)',
+                    [id, cardSlug, today, version || 1]
                 );
 
                 console.log(`Alert triggered for ID ${id}`);

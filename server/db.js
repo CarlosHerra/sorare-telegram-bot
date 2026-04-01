@@ -17,6 +17,17 @@ async function getDb() {
 async function initDb() {
   const db = await getDb();
   await db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE,
+      passwordHash TEXT,
+      googleId TEXT,
+      telegramChatId TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       playerSlug TEXT NOT NULL,
@@ -45,6 +56,11 @@ async function initDb() {
   try {
     await db.run('ALTER TABLE alerts ADD COLUMN season INTEGER');
     console.log('Added season column to alerts table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE alerts ADD COLUMN userId INTEGER');
+    console.log('Added userId column to alerts table');
   } catch (e) { }
 
   try {

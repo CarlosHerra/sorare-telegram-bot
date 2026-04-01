@@ -32,7 +32,11 @@ async function sendMessage(chatId, message) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) {
         console.error('TELEGRAM_BOT_TOKEN is not set');
-        return;
+        return false;
+    }
+    if (!chatId || String(chatId).trim() === '') {
+        console.error('sendMessage called with empty chatId');
+        return false;
     }
 
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -48,11 +52,14 @@ async function sendMessage(chatId, message) {
         const data = await response.json();
         if (!data.ok) {
             console.error('Telegram API error:', data);
+            return false;
         } else {
             console.log(`Message sent to ${chatId}`);
+            return true;
         }
     } catch (error) {
         console.error('Error sending Telegram message:', error);
+        return false;
     }
 }
 
@@ -60,7 +67,11 @@ async function sendPhotoAlert(chatId, alertData) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) {
         console.error('TELEGRAM_BOT_TOKEN is not set');
-        return;
+        return false;
+    }
+    if (!chatId || String(chatId).trim() === '') {
+        console.error('sendPhotoAlert called with empty chatId');
+        return false;
     }
 
     const {
@@ -103,16 +114,17 @@ ${cardDetails}
         });
         const data = await response.json();
         if (!data.ok) {
-            console.error('Telegram API error:', data);
+            console.error('Telegram API error in photo:', data);
             // Fallback to text message if photo fails
-            await sendMessage(chatId, caption.replace(/<[^>]*>/g, ''));
+            return await sendMessage(chatId, caption.replace(/<[^>]*>/g, ''));
         } else {
             console.log(`Photo alert sent to ${chatId}`);
+            return true;
         }
     } catch (error) {
         console.error('Error sending Telegram photo:', error);
         // Fallback to text message
-        await sendMessage(chatId, caption.replace(/<[^>]*>/g, ''));
+        return await sendMessage(chatId, caption.replace(/<[^>]*>/g, ''));
     }
 }
 

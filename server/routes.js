@@ -3,6 +3,7 @@ const { getDb } = require('./db');
 const { searchPlayers } = require('./services/sorare');
 const { getMe } = require('./services/telegram');
 const { createPendingConnection, checkConnection } = require('./services/telegramConnection');
+const { authenticateToken } = require('./auth');
 const router = express.Router();
 
 // GET search players
@@ -16,57 +17,59 @@ router.get('/players/search', async (req, res) => {
 });
 
 // GET all alerts
-router.get('/alerts', async (req, res) => {
+router.get('/alerts', authenticateToken, async (req, res) => {
     const db = await getDb();
-    const alerts = await db.all('SELECT * FROM alerts');
+    const alerts = await db.all('SELECT * FROM alerts WHERE userId = ?', [req.user.userId]);
     res.json(alerts);
 });
 
 // POST create alert
-router.post('/alerts', async (req, res) => {
-    const { playerSlug, rarity, priceThreshold, currency, telegramChatId, season } = req.body;
-    if (!playerSlug || !rarity || !priceThreshold || !telegramChatId) {
+router.post('/alerts', authenticateToken, async (req, res) => {
+    const { playerSlug, rarity, priceThreshold, currency, season } = req.body;
+    if (!playerSlug || !rarity || !priceThreshold) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const db = await getDb();
     const result = await db.run(
-        'INSERT INTO alerts (playerSlug, rarity, priceThreshold, currency, telegramChatId, season) VALUES (?, ?, ?, ?, ?, ?)',
-        [playerSlug, rarity, priceThreshold, currency || 'ETH', telegramChatId, season || null]
+        'INSERT INTO alerts (playerSlug, rarity, priceThreshold, currency, season, userId, telegramChatId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [playerSlug, rarity, priceThreshold, currency || 'ETH', season || null, req.user.userId, '']
     );
 
-    res.status(201).json({ id: result.lastID, ...req.body });
+    res.status(201).json({ id: result.lastID, ...req.body, userId: req.user.userId });
 });
 
 // DELETE alert
-router.delete('/alerts/:id', async (req, res) => {
+router.delete('/alerts/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const db = await getDb();
-    await db.run('DELETE FROM alerts WHERE id = ?', id);
+    // Ensure the user owns the alert before deleting it
+    const result = await db.run('DELETE FROM alerts WHERE id = ? AND userId = ?', [id, req.user.userId]);
+    if (result.changes === 0) return res.status(404).json({ error: 'Alert not found or unauthorized' });
     res.json({ message: 'Alert deleted' });
 });
 
 // PUT update alert
-router.put('/alerts/:id', async (req, res) => {
+router.put('/alerts/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    const { rarity, priceThreshold, currency, telegramChatId, season } = req.body;
+    const { rarity, priceThreshold, currency, season } = req.body;
 
-    if (!rarity || !priceThreshold || !telegramChatId) {
+    if (!rarity || !priceThreshold) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const db = await getDb();
 
-    // Update the alert and increment version to reset daily cooldown
+    // Update the alert and increment version if the user owns it
     const result = await db.run(
         `UPDATE alerts 
-         SET rarity = ?, priceThreshold = ?, currency = ?, telegramChatId = ?, season = ?, version = version + 1 
-         WHERE id = ?`,
-        [rarity, priceThreshold, currency || 'ETH', telegramChatId, season || null, id]
+         SET rarity = ?, priceThreshold = ?, currency = ?, season = ?, version = version + 1 
+         WHERE id = ? AND userId = ?`,
+        [rarity, priceThreshold, currency || 'ETH', season || null, id, req.user.userId]
     );
 
     if (result.changes === 0) {
-        return res.status(404).json({ error: 'Alert not found' });
+        return res.status(404).json({ error: 'Alert not found or unauthorized' });
     }
 
     res.json({ message: 'Alert updated and cooldown reset', id });

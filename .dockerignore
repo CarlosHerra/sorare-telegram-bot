@@ -1,0 +1,10 @@
+node_modules/
+client/node_modules/
+server/node_modules/
+npm-debug.log
+.DS_Store
+server/.env
+server/database.sqlite
+.git
+.gitignore
+README.md

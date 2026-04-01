@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: sorare_price_alerts
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # Map the specific .env file to keep API keys
+      - ./server/.env:/app/server/.env
+      # Map the SQLite file so progress and alerts are not lost when restarting
+      - ./server/database.sqlite:/app/server/database.sqlite

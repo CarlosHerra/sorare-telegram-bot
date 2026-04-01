@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../api/apiClient';
 
 const AlertList = ({ refreshTrigger, onEdit }) => {
     const [alerts, setAlerts] = useState([]);
 
     const fetchAlerts = async () => {
         try {
-            const response = await fetch('/api/alerts');
-            if (response.ok) {
-                const data = await response.json();
-                setAlerts(data);
-            }
+            const data = await apiFetch('/alerts');
+            setAlerts(data);
         } catch (error) {
             console.error('Error fetching alerts:', error);
         }
@@ -17,7 +15,7 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
 
     const deleteAlert = async (id) => {
         try {
-            await fetch(`/api/alerts/${id}`, { method: 'DELETE' });
+            await apiFetch(`/alerts/${id}`, { method: 'DELETE' });
             fetchAlerts();
         } catch (error) {
             console.error('Error deleting alert:', error);

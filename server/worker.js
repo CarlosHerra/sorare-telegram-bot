@@ -10,7 +10,12 @@ const { getEthToEurRate } = require('./services/exchange');
 async function checkAlerts() {
     console.log('Running alert check...');
     const db = await getDb();
-    const alerts = await db.all('SELECT * FROM alerts');
+    const alerts = await db.all(`
+        SELECT a.*, u.telegramChatId 
+        FROM alerts a 
+        JOIN users u ON a.userId = u.id 
+        WHERE u.telegramChatId IS NOT NULL
+    `);
 
     if (alerts.length === 0) {
         console.log('No alerts to check.');
@@ -79,7 +84,7 @@ async function checkAlerts() {
                 }
 
                 // Send rich photo alert
-                await sendPhotoAlert(telegramChatId, {
+                const success = await sendPhotoAlert(telegramChatId, {
                     playerDisplayName: currentData.playerDisplayName,
                     cardSlug: cardSlug,
                     pictureUrl: currentData.pictureUrl,
@@ -90,13 +95,17 @@ async function checkAlerts() {
                     threshold: { amount: priceThreshold, currency }
                 });
 
-                // Record that we sent this alert today
-                await db.run(
-                    'INSERT OR IGNORE INTO sent_alerts (alertId, cardSlug, dateSent, alertVersion) VALUES (?, ?, ?, ?)',
-                    [id, cardSlug, today, version || 1]
-                );
+                if (success) {
+                    // Record that we sent this alert today
+                    await db.run(
+                        'INSERT OR IGNORE INTO sent_alerts (alertId, cardSlug, dateSent, alertVersion) VALUES (?, ?, ?, ?)',
+                        [id, cardSlug, today, version || 1]
+                    );
 
-                console.log(`Alert triggered for ID ${id}`);
+                    console.log(`Alert triggered and recorded for ID ${id}`);
+                } else {
+                    console.log(`Failed to send alert for ID ${id}. Let's try again next loop.`);
+                }
             }
         } else {
             console.log(`Could not get price for ${playerSlug}`);

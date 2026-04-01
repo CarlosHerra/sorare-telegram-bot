@@ -4,16 +4,18 @@ const cors = require('cors');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { initDb } = require('./db');
 const router = require('./routes');
+const authRouter = require('./routes/auth');
 const { startPolling } = require('./worker');
 const { startTelegramUpdatePolling } = require('./services/telegramConnection');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 app.use(cors());
 app.use(express.json());
 
 // Routes
+app.use('/api/auth', authRouter);
 app.use('/api', router);
 
 // Serve static files from the React app in production

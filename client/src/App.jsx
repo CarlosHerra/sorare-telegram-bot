@@ -10,7 +10,7 @@ function App() {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [editingAlert, setEditingAlert] = useState(null);
     const [showProfile, setShowProfile] = useState(false);
-    
+
     // Telegram connect states
     const [connectingTelegram, setConnectingTelegram] = useState(false);
     const [connectionCode, setConnectionCode] = useState('');
@@ -103,13 +103,13 @@ function App() {
         <div className="min-h-screen bg-sorare-dark text-sorare-text p-6 md:p-12 font-sans selection:bg-sorare-accent selection:text-white">
             <header className="max-w-4xl mx-auto mb-16 relative">
                 <div className="absolute top-0 right-0 flex items-center gap-4">
-                    <button 
+                    <button
                         onClick={() => setShowProfile(true)}
                         className="text-sm border border-sorare-border px-4 py-2 rounded-lg hover:border-sorare-accent hover:text-sorare-accent transition-all flex items-center gap-2"
                     >
                         {user?.telegramChatId ? <span className="text-green-500">✓ Linked</span> : <span className="text-yellow-500">Profile Settings</span>}
                     </button>
-                    <button 
+                    <button
                         onClick={logout}
                         className="text-sm bg-red-500/10 text-red-400 border border-red-500/20 px-4 py-2 rounded-lg hover:bg-red-500/20 transition-all font-bold"
                     >
@@ -129,7 +129,7 @@ function App() {
             {!user?.telegramChatId && !showProfile && (
                 <div className="max-w-4xl mx-auto mb-8 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 text-center">
                     <p className="text-yellow-400 mb-2 font-medium">Wait! You haven't linked your Telegram account yet.</p>
-                    <button 
+                    <button
                         onClick={() => setShowProfile(true)}
                         className="bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors"
                     >
@@ -141,12 +141,12 @@ function App() {
             {showProfile && (
                 <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
                     <div className="bg-sorare-card border border-sorare-border max-w-md w-full rounded-2xl p-8 relative">
-                        <button 
+                        <button
                             onClick={() => setShowProfile(false)}
                             className="absolute top-4 right-4 text-sorare-muted hover:text-white"
                         >✕</button>
                         <h2 className="text-2xl font-bold text-white mb-6">Profile Settings</h2>
-                        
+
                         <form onSubmit={handleUpdateProfile} className="space-y-6">
                             <div>
                                 <label className="block text-gray-400 mb-2 font-medium">Email</label>
@@ -222,7 +222,7 @@ function App() {
             </main>
 
             <footer className="max-w-4xl mx-auto mt-20 text-center text-sorare-muted text-sm pb-10">
-                <p>© 2024 Sorare Sniper. Not affiliated with Sorare SAS.</p>
+                <p>© 2026 Sorare Sniper. Not affiliated with Sorare SAS.</p>
             </footer>
         </div>
     );

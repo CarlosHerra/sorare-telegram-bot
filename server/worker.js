@@ -4,7 +4,7 @@ const { sendPhotoAlert } = require('./services/telegram');
 
 const POLLING_INTERVAL_MS = 60 * 1000; // 1 minute
 
-const { getEthToEurRate } = require('./services/exchange');
+const { getEthToEurRate, convertCurrency } = require('./services/exchange');
 
 // Cache rate briefly or fetch fresh? Fetching fresh for now (1 min interval is fine)
 async function checkAlerts() {
@@ -34,37 +34,8 @@ async function checkAlerts() {
         if (currentData && currentData.price) {
             const cardPrice = currentData.price;
             const cardCurrency = currentData.currency; // The actual currency from the API (ETH, EUR, USD)
-            let cardPriceConverted = cardPrice;
-
-            // Convert card price to the alert's target currency
-            if (cardCurrency === 'ETH') {
-                // Card price is in ETH, convert to target currency
-                if (currency === 'EUR') {
-                    cardPriceConverted = cardPrice * ethToEur;
-                } else if (currency === 'USD') {
-                    cardPriceConverted = cardPrice * ethToEur * 1.08; // ETH -> EUR -> USD
-                } else {
-                    cardPriceConverted = cardPrice; // Keep as ETH
-                }
-            } else if (cardCurrency === 'EUR') {
-                // Card price is in EUR, convert to target currency
-                if (currency === 'USD') {
-                    cardPriceConverted = cardPrice * 1.08; // EUR -> USD
-                } else if (currency === 'ETH') {
-                    cardPriceConverted = cardPrice / ethToEur; // EUR -> ETH
-                } else {
-                    cardPriceConverted = cardPrice; // Keep as EUR
-                }
-            } else if (cardCurrency === 'USD') {
-                // Card price is in USD, convert to target currency
-                if (currency === 'EUR') {
-                    cardPriceConverted = cardPrice / 1.08; // USD -> EUR
-                } else if (currency === 'ETH') {
-                    cardPriceConverted = cardPrice / 1.08 / ethToEur; // USD -> EUR -> ETH
-                } else {
-                    cardPriceConverted = cardPrice; // Keep as USD
-                }
-            }
+            
+            const cardPriceConverted = convertCurrency(cardPrice, cardCurrency, currency, ethToEur);
 
             console.log(`Checking ${playerSlug}: Card ${cardPrice} ${cardCurrency} (~${cardPriceConverted.toFixed(2)} ${currency}) vs Alert ${priceThreshold} ${currency}`);
 
@@ -87,7 +58,7 @@ async function checkAlerts() {
                 const success = await sendPhotoAlert(telegramChatId, {
                     playerDisplayName: currentData.playerDisplayName,
                     cardSlug: cardSlug,
-                    pictureUrl: currentData.pictureUrl,
+                    pictureUrl: currentData.cardPictureUrl,
                     serialNumber: currentData.serialNumber,
                     seasonYear: currentData.seasonYear,
                     rarity: currentData.rarity,

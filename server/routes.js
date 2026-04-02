@@ -1,6 +1,6 @@
 const express = require('express');
 const { getDb } = require('./db');
-const { searchPlayers } = require('./services/sorare');
+const { searchPlayers, getCardPrice } = require('./services/sorare');
 const { getMe } = require('./services/telegram');
 const { createPendingConnection, checkConnection } = require('./services/telegramConnection');
 const { authenticateToken } = require('./auth');
@@ -17,10 +17,33 @@ router.get('/players/search', async (req, res) => {
 });
 
 // GET all alerts
+// GET all alerts
 router.get('/alerts', authenticateToken, async (req, res) => {
     const db = await getDb();
     const alerts = await db.all('SELECT * FROM alerts WHERE userId = ?', [req.user.userId]);
-    res.json(alerts);
+    
+    // Fetch current prices in parallel to return alongside the alert configurations
+    const { getEthToEurRate, convertCurrency } = require('./services/exchange');
+    const ethToEur = await getEthToEurRate() || 2500;
+    
+    const alertsWithPrice = await Promise.all(alerts.map(async (alert) => {
+        const { playerSlug, rarity, season, currency } = alert;
+        const currentData = await getCardPrice(playerSlug, rarity, season);
+        let currentFloorPrice = null;
+
+        if (currentData && currentData.price) {
+            const cardPriceConverted = convertCurrency(currentData.price, currentData.currency, currency, ethToEur);
+            currentFloorPrice = cardPriceConverted;
+        }
+
+        return {
+            ...alert,
+            currentFloorPrice,
+            playerPictureUrl: currentData?.playerPictureUrl || null
+        };
+    }));
+
+    res.json(alertsWithPrice);
 });
 
 // POST create alert

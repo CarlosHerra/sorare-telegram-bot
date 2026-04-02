@@ -26,6 +26,11 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
         fetchAlerts();
     }, [refreshTrigger]);
 
+    const formatPrice = (price, currency) => {
+        if (!price && price !== 0) return '';
+        return currency === 'ETH' ? Number(price).toFixed(4) : Number(price).toFixed(2);
+    };
+
     const getRarityColor = (rarity) => {
         switch (rarity) {
             case 'unique': return 'bg-gray-900 border-gray-700 text-white';
@@ -52,8 +57,18 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                     {alerts.map((alert) => (
                         <div key={alert.id} className="group flex justify-between items-center bg-sorare-cardHover border border-sorare-border hover:border-sorare-accent/50 p-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-sorare-accent/5">
                             <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 flex items-center justify-center rounded-full bg-gradient-to-br from-sorare-card to-sorare-dark border border-sorare-border font-bold text-sorare-muted">
-                                    {alert.playerSlug.charAt(0).toUpperCase()}
+                                <div className="relative h-10 w-10 shrink-0">
+                                    {alert.playerPictureUrl ? (
+                                        <img 
+                                            src={alert.playerPictureUrl} 
+                                            alt={alert.playerSlug} 
+                                            className="h-full w-full rounded-full border border-sorare-border object-cover bg-sorare-dark"
+                                        />
+                                    ) : (
+                                        <div className="h-full w-full flex items-center justify-center rounded-full bg-gradient-to-br from-sorare-card to-sorare-dark border border-sorare-border font-bold text-sorare-muted">
+                                            {alert.playerSlug.charAt(0).toUpperCase()}
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <p className="font-bold text-lg text-white group-hover:text-sorare-accent transition-colors">
@@ -68,8 +83,16 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                                                 {alert.season}
                                             </span>
                                         )}
-                                        <span className="text-sm text-sorare-muted ml-1">
-                                            Below <span className="text-white font-mono font-bold">{alert.priceThreshold} {alert.currency}</span>
+                                        <span className="text-sm text-sorare-muted ml-1 flex items-center">
+                                            Below <span className="text-white font-mono font-bold ml-1">{alert.priceThreshold} {alert.currency}</span>
+                                            {alert.currentFloorPrice !== undefined && (
+                                                <>
+                                                    <span className="mx-2 text-sorare-border">|</span>
+                                                    Floor: <span className="text-sorare-accent font-mono font-bold ml-1">
+                                                        {alert.currentFloorPrice !== null ? `${formatPrice(alert.currentFloorPrice, alert.currency)} ${alert.currency}` : 'N/A'}
+                                                    </span>
+                                                </>
+                                            )}
                                         </span>
                                     </div>
                                 </div>

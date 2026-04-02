@@ -9,6 +9,7 @@ services:
       - "3001:3001"
     environment:
       - NODE_ENV=production
+      - PORT=3001
     volumes:
       # Map the specific .env file to keep API keys
       - ./server/.env:/app/server/.env

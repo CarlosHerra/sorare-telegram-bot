@@ -2,7 +2,10 @@
 
 A full-stack application to monitor Sorare player card prices and receive instant alerts via Telegram when they drop below your target.
 
-![App Screenshot](file:///c:/Users/cherr/.gemini/antigravity/scratch/sorare-price-alerts/client/public/logo.png) *(Placeholder: Add your own logo/screenshot)*
+<div align="center">
+  <img src="docs/Sorare%20Sniper%20Screenshot%201.PNG" alt="Sorare Price Alerts Screenshot 1" width="45%" padding="10px"/>
+  <img src="docs/Sorare%20Sniper%20Screenshot%202.PNG" alt="Sorare Price Alerts Screenshot 2" width="45%" padding="10px"/>
+</div>
 
 ## ✨ Features
 

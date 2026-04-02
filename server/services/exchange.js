@@ -55,4 +55,21 @@ async function getGbpToEurRate() {
     });
 }
 
-module.exports = { getEthToEurRate, getGbpToEurRate };
+function convertCurrency(amount, fromCurrency, toCurrency, ethToEurRate) {
+    if (fromCurrency === toCurrency) return amount;
+
+    if (fromCurrency === 'ETH') {
+        if (toCurrency === 'EUR') return amount * ethToEurRate;
+        if (toCurrency === 'USD') return amount * ethToEurRate * 1.08;
+    } else if (fromCurrency === 'EUR') {
+        if (toCurrency === 'USD') return amount * 1.08;
+        if (toCurrency === 'ETH') return amount / ethToEurRate;
+    } else if (fromCurrency === 'USD') {
+        if (toCurrency === 'EUR') return amount / 1.08;
+        if (toCurrency === 'ETH') return (amount / 1.08) / ethToEurRate;
+    }
+    
+    return amount;
+}
+
+module.exports = { getEthToEurRate, getGbpToEurRate, convertCurrency };

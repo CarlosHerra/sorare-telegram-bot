@@ -7,6 +7,7 @@ const QUERY = gql`
   query GetMinListingPrice($slug: String!, $rarity: [Rarity!], $season: [Int!]) {
     anyPlayer(slug: $slug) {
       displayName
+      avatarPictureUrl
       anyCards(
         rarities: $rarity
         seasonStartYears: $season
@@ -65,7 +66,7 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
 
     if (!data.anyPlayer || !data.anyPlayer.anyCards || !data.anyPlayer.anyCards.nodes || data.anyPlayer.anyCards.nodes.length === 0) {
       console.warn(`No cards found for ${playerSlug}`);
-      return null;
+      return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
     }
 
     // Get the lowestPriceCard from the first node
@@ -73,13 +74,13 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
 
     if (!lowestPriceCard || !lowestPriceCard.liveSingleSaleOffer) {
       console.warn(`No live sale offer found for ${playerSlug}`);
-      return null;
+      return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
     }
 
     const amounts = lowestPriceCard.liveSingleSaleOffer.receiverSide?.amounts;
     if (!amounts) {
       console.warn(`No price amounts found for ${playerSlug}`);
-      return null;
+      return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
     }
 
     // Extract price - prefer ETH (wei) but fallback to EUR/USD
@@ -110,7 +111,7 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
     }
 
     if (price === null) {
-      return null;
+      return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
     }
 
     console.log(`Found lowest price: ${price} ${currency} for ${playerSlug}`);
@@ -118,7 +119,8 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
       price,
       currency,
       cardSlug: lowestPriceCard.slug,
-      pictureUrl: lowestPriceCard.pictureUrl,
+      cardPictureUrl: lowestPriceCard.pictureUrl,
+      playerPictureUrl: data.anyPlayer.avatarPictureUrl,
       serialNumber: lowestPriceCard.serialNumber,
       seasonYear: lowestPriceCard.seasonYear,
       rarity: lowestPriceCard.rarityTyped,

@@ -209,16 +209,20 @@ function App() {
                 </div>
             )}
 
-            <main className="max-w-4xl mx-auto space-y-8">
-                <AlertForm
-                    onAlertCreated={handleAlertCreated}
-                    editingAlert={editingAlert}
-                    onCancelEdit={handleCancelEdit}
-                />
-                <AlertList
-                    refreshTrigger={refreshTrigger}
-                    onEdit={handleEdit}
-                />
+            <main className="w-full mx-auto space-y-8">
+                <div className="max-w-5xl mx-auto">
+                    <AlertForm
+                        onAlertCreated={handleAlertCreated}
+                        editingAlert={editingAlert}
+                        onCancelEdit={handleCancelEdit}
+                    />
+                </div>
+                <div className="max-w-screen-2xl mx-auto">
+                    <AlertList
+                        refreshTrigger={refreshTrigger}
+                        onEdit={handleEdit}
+                    />
+                </div>
             </main>
 
             <footer className="max-w-4xl mx-auto mt-20 text-center text-sorare-muted text-sm pb-10">

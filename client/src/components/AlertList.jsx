@@ -53,10 +53,10 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                     <p className="text-sm text-sorare-muted/50 mt-1">Create one above to start sniping.</p>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                     {alerts.map((alert) => (
-                        <div key={alert.id} className="group flex justify-between items-center bg-sorare-cardHover border border-sorare-border hover:border-sorare-accent/50 p-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-sorare-accent/5">
-                            <div className="flex items-center gap-4">
+                        <div key={alert.id} className="group flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-sorare-cardHover border border-sorare-border hover:border-sorare-accent/50 p-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-sorare-accent/5">
+                            <div className="flex items-center gap-4 w-full sm:w-auto overflow-hidden">
                                 <div className="relative h-10 w-10 shrink-0">
                                     {alert.playerPictureUrl ? (
                                         <img 
@@ -70,34 +70,34 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                                         </div>
                                     )}
                                 </div>
-                                <div>
-                                    <p className="font-bold text-lg text-white group-hover:text-sorare-accent transition-colors">
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-lg text-white group-hover:text-sorare-accent transition-colors truncate">
                                         {alert.playerSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                                     </p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className={`px-2 py-0.5 rounded text-xs font-bold border ${getRarityColor(alert.rarity)} uppercase tracking-wider`}>
+                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold border ${getRarityColor(alert.rarity)} uppercase tracking-wider whitespace-nowrap`}>
                                             {alert.rarity}
                                         </span>
                                         {alert.season && (
-                                            <span className="px-2 py-0.5 rounded text-xs font-bold border bg-gray-800 border-gray-600 text-gray-300">
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold border bg-gray-800 border-gray-600 text-gray-300 whitespace-nowrap">
                                                 {alert.season}
                                             </span>
                                         )}
-                                        <span className="text-sm text-sorare-muted ml-1 flex items-center">
-                                            Below <span className="text-white font-mono font-bold ml-1">{alert.priceThreshold} {alert.currency}</span>
+                                        <span className="text-xs sm:text-sm text-sorare-muted flex flex-wrap items-center gap-x-1 mt-1 xl:mt-0">
+                                            <span>Below <span className="text-white font-mono font-bold">{alert.priceThreshold} {alert.currency}</span></span>
                                             {alert.currentFloorPrice !== undefined && (
                                                 <>
-                                                    <span className="mx-2 text-sorare-border">|</span>
-                                                    Floor: <span className="text-sorare-accent font-mono font-bold ml-1">
+                                                    <span className="hidden xl:inline text-sorare-border mx-1">|</span>
+                                                    <span className="rounded bg-sorare-dark/50 px-1.5 py-0.5 border border-sorare-border/50">Floor: <span className="text-sorare-accent font-mono font-bold">
                                                         {alert.currentFloorPrice !== null ? `${formatPrice(alert.currentFloorPrice, alert.currency)} ${alert.currency}` : 'N/A'}
-                                                    </span>
+                                                    </span></span>
                                                 </>
                                             )}
                                         </span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-all">
+                            <div className="flex items-center gap-2 opacity-100 sm:opacity-60 group-hover:opacity-100 transition-all self-end sm:self-auto shrink-0">
                                 <button
                                     onClick={() => onEdit(alert)}
                                     className="p-2 text-sorare-accent hover:bg-sorare-accent/10 rounded-lg transition-all"

@@ -3,7 +3,7 @@ const { getDb } = require('./db');
 const { searchPlayers, getCardPrice } = require('./services/sorare');
 const { getMe } = require('./services/telegram');
 const { createPendingConnection, checkConnection } = require('./services/telegramConnection');
-const { authenticateToken } = require('./auth');
+const { authenticateToken, checkAlertOwnership } = require('./auth');
 const router = express.Router();
 
 // GET search players
@@ -63,17 +63,18 @@ router.post('/alerts', authenticateToken, async (req, res) => {
 });
 
 // DELETE alert
-router.delete('/alerts/:id', authenticateToken, async (req, res) => {
+router.delete('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, res) => {
     const { id } = req.params;
     const db = await getDb();
-    // Ensure the user owns the alert before deleting it
-    const result = await db.run('DELETE FROM alerts WHERE id = ? AND userId = ?', [id, req.user.userId]);
-    if (result.changes === 0) return res.status(404).json({ error: 'Alert not found or unauthorized' });
+    
+    // Existence and ownership are already verified by the middleware
+    await db.run('DELETE FROM alerts WHERE id = ?', [id]);
+    
     res.json({ message: 'Alert deleted' });
 });
 
 // PUT update alert
-router.put('/alerts/:id', authenticateToken, async (req, res) => {
+router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, res) => {
     const { id } = req.params;
     const { rarity, priceThreshold, currency, season } = req.body;
 
@@ -83,17 +84,13 @@ router.put('/alerts/:id', authenticateToken, async (req, res) => {
 
     const db = await getDb();
 
-    // Update the alert and increment version if the user owns it
-    const result = await db.run(
+    // Existence and ownership are already verified by the middleware
+    await db.run(
         `UPDATE alerts 
          SET rarity = ?, priceThreshold = ?, currency = ?, season = ?, version = version + 1 
-         WHERE id = ? AND userId = ?`,
-        [rarity, priceThreshold, currency || 'ETH', season || null, id, req.user.userId]
+         WHERE id = ?`,
+        [rarity, priceThreshold, currency || 'ETH', season || null, id]
     );
-
-    if (result.changes === 0) {
-        return res.status(404).json({ error: 'Alert not found or unauthorized' });
-    }
 
     res.json({ message: 'Alert updated and cooldown reset', id });
 });

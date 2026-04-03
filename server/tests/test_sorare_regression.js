@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { getCardPrice, searchPlayers } = require('./services/sorare');
+const { getCardPrice, searchPlayers } = require('../services/sorare');
 
 async function test() {
     console.log("Searching for 'Cristiano'...");

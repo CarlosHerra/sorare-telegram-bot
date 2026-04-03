@@ -1,6 +1,6 @@
 const express = require('express');
 const { getDb } = require('./db');
-const { searchPlayers, getCardPrice } = require('./services/sorare');
+const { searchPlayers } = require('./services/sorare');
 const { getMe } = require('./services/telegram');
 const { createPendingConnection, checkConnection } = require('./services/telegramConnection');
 const { authenticateToken, checkAlertOwnership } = require('./auth');
@@ -16,30 +16,41 @@ router.get('/players/search', async (req, res) => {
     res.json(players);
 });
 
-// GET all alerts
-// GET all alerts
 router.get('/alerts', authenticateToken, async (req, res) => {
     const db = await getDb();
     const alerts = await db.all('SELECT * FROM alerts WHERE userId = ?', [req.user.userId]);
     
-    // Fetch current prices in parallel to return alongside the alert configurations
-    const { getEthToEurRate, convertCurrency } = require('./services/exchange');
-    const ethToEur = await getEthToEurRate() || 2500;
+    // Fetch exchange rate to apply conversions based on locally cached prices
+    const { getRates, convertCurrency } = require('./services/exchange');
+    const rates = await getRates();
     
+    // Resolve cached data for each alert seamlessly
     const alertsWithPrice = await Promise.all(alerts.map(async (alert) => {
         const { playerSlug, rarity, season, currency } = alert;
-        const currentData = await getCardPrice(playerSlug, rarity, season);
+        
+        // Grab values cleanly from the background cache instead of blocking external APIs
+        const cachedData = await db.get(
+            `SELECT price, currency as cachedCurrency, playerPictureUrl 
+             FROM card_prices_cache 
+             WHERE playerSlug = ? AND rarity = ? AND season = ?`,
+            [playerSlug, rarity, season || 'any']
+        );
+        
         let currentFloorPrice = null;
+        let playerPictureUrl = null;
 
-        if (currentData && currentData.price) {
-            const cardPriceConverted = convertCurrency(currentData.price, currentData.currency, currency, ethToEur);
-            currentFloorPrice = cardPriceConverted;
+        if (cachedData) {
+            playerPictureUrl = cachedData.playerPictureUrl;
+            if (cachedData.price) {
+                const cardPriceConverted = convertCurrency(cachedData.price, cachedData.cachedCurrency, currency, rates);
+                currentFloorPrice = cardPriceConverted;
+            }
         }
 
         return {
             ...alert,
             currentFloorPrice,
-            playerPictureUrl: currentData?.playerPictureUrl || null
+            playerPictureUrl
         };
     }));
 

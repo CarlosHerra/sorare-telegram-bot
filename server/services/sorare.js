@@ -46,26 +46,24 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
     }
 
     const client = new GraphQLClient(ENDPOINT, { headers });
-
     const formattedRarity = rarity.toLowerCase();
 
-    console.log(`Fetching price for ${playerSlug}[${formattedRarity}](Season: ${seasonFilter || 'Any'})...`);
-
-    // Build variables for the query
+    // Build variables
     const variables = {
       slug: playerSlug,
       rarity: [formattedRarity]
     };
 
     // Add season filter if specified
-    if (seasonFilter) {
+    if (seasonFilter && seasonFilter !== 'any') {
       variables.season = [parseInt(seasonFilter)];
+    } else {
+      variables.season = []; // Empty array means any season
     }
 
     const data = await client.request(QUERY, variables);
 
     if (!data.anyPlayer || !data.anyPlayer.anyCards || !data.anyPlayer.anyCards.nodes || data.anyPlayer.anyCards.nodes.length === 0) {
-      console.warn(`No cards found for ${playerSlug}`);
       return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
     }
 
@@ -73,22 +71,20 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
     const lowestPriceCard = data.anyPlayer.anyCards.nodes[0]?.lowestPriceCard;
 
     if (!lowestPriceCard || !lowestPriceCard.liveSingleSaleOffer) {
-      console.warn(`No live sale offer found for ${playerSlug}`);
       return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
     }
 
     const amounts = lowestPriceCard.liveSingleSaleOffer.receiverSide?.amounts;
     if (!amounts) {
-      console.warn(`No price amounts found for ${playerSlug}`);
       return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
     }
 
-    // Extract price - prefer ETH (wei) but fallback to EUR/USD
+    // Extract price - prefer ETH (wei) but fallback to fiat
     let price = null;
     let currency = 'ETH';
 
     if (amounts.wei) {
-      price = parseFloat(amounts.wei) / 1000000000000000000; // Convert Wei to ETH
+      price = parseFloat(amounts.wei) / 1000000000000000000;
       currency = 'ETH';
     } else if (amounts.eurCents) {
       price = parseFloat(amounts.eurCents) / 100;
@@ -97,24 +93,10 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
       price = parseFloat(amounts.usdCents) / 100;
       currency = 'USD';
     } else if (amounts.gbpCents) {
-      const gbpPrice = parseFloat(amounts.gbpCents) / 100;
-      const rate = await getGbpToEurRate();
-      if (rate) {
-        price = gbpPrice * rate;
-        currency = 'EUR'; // Converted
-        console.log(`Converted ${gbpPrice} GBP to ${price} EUR (Rate: ${rate})`);
-      } else {
-        // Fallback if rate fails, just return GBP
-        price = gbpPrice;
-        currency = 'GBP';
-      }
+      price = parseFloat(amounts.gbpCents) / 100;
+      currency = 'GBP';
     }
 
-    if (price === null) {
-      return { price: null, playerPictureUrl: data.anyPlayer?.avatarPictureUrl };
-    }
-
-    console.log(`Found lowest price: ${price} ${currency} for ${playerSlug}`);
     return {
       price,
       currency,
@@ -128,8 +110,7 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
     };
 
   } catch (error) {
-    console.error('Error fetching Sorare price:', error.message);
-    if (error.response) console.error(JSON.stringify(error.response.body));
+    console.error(`Error fetching Sorare price for ${playerSlug}:`, error.message);
     return null;
   }
 }
@@ -170,4 +151,74 @@ async function searchPlayers(query) {
   }
 }
 
-module.exports = { getCardPrice, searchPlayers };
+const CARD_FIELDS_FRAGMENT = `
+  fragment CardFields on Card {
+    slug
+    pictureUrl
+    serialNumber
+    seasonYear
+    rarityTyped
+    liveSingleSaleOffer {
+      receiverSide {
+        amounts {
+          eurCents
+          usdCents
+          gbpCents
+          wei
+        }
+      }
+    }
+  }
+`;
+
+async function getBatchedCardPrices(requests) {
+  if (!requests || requests.length === 0) return {};
+
+  try {
+    console.log(`Processing batch of ${requests.length} unique player/rarity/season combinations in parallel...`);
+    
+    // Execute all requests concurrently using Promise.all
+    // Each request is still an individual HTTP call, which bypasses the "Duplicated root field" error.
+    const promises = requests.map(req => 
+      getCardPrice(req.playerSlug, req.rarity, req.season)
+        .then(result => ({ 
+          key: `${req.playerSlug}-${req.rarity}-${req.season || 'any'}`, 
+          result 
+        }))
+    );
+
+    const rawResults = await Promise.all(promises);
+    const results = {};
+
+    for (const { key, result } of rawResults) {
+      results[key] = result;
+    }
+
+    return results;
+  } catch (error) {
+    console.error('Error in parallel batch processing:', error.message);
+    return {};
+  }
+}
+
+async function getExchangeRates() {
+  try {
+    const client = new GraphQLClient(ENDPOINT);
+    const query = gql`
+      query {
+        config {
+          exchangeRate {
+            rates
+          }
+        }
+      }
+    `;
+    const data = await client.request(query);
+    return data?.config?.exchangeRate?.rates || null;
+  } catch (error) {
+    console.error('Error fetching Sorare exchange rates:', error.message);
+    return null;
+  }
+}
+
+module.exports = { getCardPrice, searchPlayers, getBatchedCardPrices, getExchangeRates };

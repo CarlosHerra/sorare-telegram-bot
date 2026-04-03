@@ -1,12 +1,11 @@
 const { getDb } = require('./db');
-const { getCardPrice } = require('./services/sorare');
+const { getCardPrice, getBatchedCardPrices } = require('./services/sorare');
 const { sendPhotoAlert } = require('./services/telegram');
 
 const POLLING_INTERVAL_MS = 60 * 1000; // 1 minute
 
-const { getEthToEurRate, convertCurrency } = require('./services/exchange');
+const { getRates, convertCurrency } = require('./services/exchange');
 
-// Cache rate briefly or fetch fresh? Fetching fresh for now (1 min interval is fine)
 async function checkAlerts() {
     console.log('Running alert check...');
     const db = await getDb();
@@ -22,64 +21,98 @@ async function checkAlerts() {
         return;
     }
 
-    // Fetch exchange rate once for the batch if possible
-    const ethToEur = await getEthToEurRate() || 2500; // Fallback to 2500 if fails
-    console.log(`Current ETH/EUR Rate: ${ethToEur}`);
+    const rates = await getRates();
+    console.log(`Current ETH Rate in EUR: ${rates?.eth?.eur || 'N/A'}`);
 
+    const groupedAlerts = {};
+    const uniqueRequests = [];
     for (const alert of alerts) {
-        const { id, playerSlug, rarity, priceThreshold, currency, telegramChatId, season, version } = alert;
+        const key = `${alert.playerSlug}-${alert.rarity}-${alert.season || 'any'}`;
+        if (!groupedAlerts[key]) {
+            groupedAlerts[key] = {
+                playerSlug: alert.playerSlug,
+                rarity: alert.rarity,
+                season: alert.season,
+                alerts: []
+            };
+            uniqueRequests.push({ playerSlug: alert.playerSlug, rarity: alert.rarity, season: alert.season });
+        }
+        groupedAlerts[key].alerts.push(alert);
+    }
 
-        const currentData = await getCardPrice(playerSlug, rarity, season);
+    // Process in batches of 30 to avoid huge GraphQL queries
+    const BATCH_SIZE = 30;
+    const allResults = {};
+
+    for (let i = 0; i < uniqueRequests.length; i += BATCH_SIZE) {
+        const batch = uniqueRequests.slice(i, i + BATCH_SIZE);
+        console.log(`Fetching batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} players)...`);
+        const batchResults = await getBatchedCardPrices(batch);
+        Object.assign(allResults, batchResults);
+    }
+
+    // Process results
+    for (const key in allResults) {
+        const currentData = allResults[key];
+        const group = groupedAlerts[key];
+        if (!group) continue;
+
+        const { playerSlug, rarity, season, alerts: groupAlerts } = group;
+
+        if (currentData) {
+            // Upsert to Cache
+            try {
+                await db.run(
+                    `INSERT INTO card_prices_cache (playerSlug, rarity, season, price, currency, playerPictureUrl, updatedAt)
+                     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                     ON CONFLICT(playerSlug, rarity, season)
+                     DO UPDATE SET price=excluded.price, currency=excluded.currency, playerPictureUrl=excluded.playerPictureUrl, updatedAt=CURRENT_TIMESTAMP`,
+                    [playerSlug, rarity, season || 'any', currentData.price || null, currentData.currency || null, currentData.playerPictureUrl || null]
+                );
+            } catch (cacheErr) {
+                console.error('Error writing to cache:', cacheErr);
+            }
+        }
 
         if (currentData && currentData.price) {
             const cardPrice = currentData.price;
-            const cardCurrency = currentData.currency; // The actual currency from the API (ETH, EUR, USD)
+            const cardCurrency = currentData.currency;
             
-            const cardPriceConverted = convertCurrency(cardPrice, cardCurrency, currency, ethToEur);
+            for (const alert of groupAlerts) {
+                const { id, priceThreshold, currency, telegramChatId, version } = alert;
+                const cardPriceConverted = convertCurrency(cardPrice, cardCurrency, currency, rates);
 
-            console.log(`Checking ${playerSlug}: Card ${cardPrice} ${cardCurrency} (~${cardPriceConverted.toFixed(2)} ${currency}) vs Alert ${priceThreshold} ${currency}`);
+                if (cardPriceConverted < priceThreshold) {
+                    const cardSlug = currentData.cardSlug;
+                    const today = new Date().toISOString().split('T')[0];
 
-            if (cardPriceConverted < priceThreshold) {
-                const cardSlug = currentData.cardSlug;
-                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-
-                // Check if we already sent an alert today for this alert + card + version combination
-                const existingAlert = await db.get(
-                    'SELECT id FROM sent_alerts WHERE alertId = ? AND cardSlug = ? AND dateSent = ? AND alertVersion = ?',
-                    [id, cardSlug, today, version || 1]
-                );
-
-                if (existingAlert) {
-                    console.log(`Alert for ${playerSlug} (${cardSlug}) [v${version || 1}] already sent today, skipping.`);
-                    continue;
-                }
-
-                // Send rich photo alert
-                const success = await sendPhotoAlert(telegramChatId, {
-                    playerDisplayName: currentData.playerDisplayName,
-                    cardSlug: cardSlug,
-                    pictureUrl: currentData.cardPictureUrl,
-                    serialNumber: currentData.serialNumber,
-                    seasonYear: currentData.seasonYear,
-                    rarity: currentData.rarity,
-                    currentPrice: { amount: cardPriceConverted, currency },
-                    threshold: { amount: priceThreshold, currency }
-                });
-
-                if (success) {
-                    // Record that we sent this alert today
-                    await db.run(
-                        'INSERT OR IGNORE INTO sent_alerts (alertId, cardSlug, dateSent, alertVersion) VALUES (?, ?, ?, ?)',
+                    const existingAlert = await db.get(
+                        'SELECT id FROM sent_alerts WHERE alertId = ? AND cardSlug = ? AND dateSent = ? AND alertVersion = ?',
                         [id, cardSlug, today, version || 1]
                     );
 
-                    console.log(`Alert triggered and recorded for ID ${id}`);
-                } else {
-                    console.log(`Failed to send alert for ID ${id}. Let's try again next loop.`);
+                    if (existingAlert) continue;
+
+                    const success = await sendPhotoAlert(telegramChatId, {
+                        playerDisplayName: currentData.playerDisplayName,
+                        cardSlug: cardSlug,
+                        pictureUrl: currentData.cardPictureUrl,
+                        serialNumber: currentData.serialNumber,
+                        seasonYear: currentData.seasonYear,
+                        rarity: currentData.rarity,
+                        currentPrice: { amount: cardPriceConverted, currency },
+                        threshold: { amount: priceThreshold, currency }
+                    });
+
+                    if (success) {
+                        await db.run(
+                            'INSERT OR IGNORE INTO sent_alerts (alertId, cardSlug, dateSent, alertVersion) VALUES (?, ?, ?, ?)',
+                            [id, cardSlug, today, version || 1]
+                        );
+                        console.log(`Alert triggered for ID ${id}`);
+                    }
                 }
             }
-        } else {
-            console.log(`Could not get price for ${playerSlug}`);
         }
     }
 }

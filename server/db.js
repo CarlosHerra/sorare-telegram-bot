@@ -95,6 +95,21 @@ async function initDb() {
     // If it fails (e.g. column already exists), we just continue
   }
 
+  // Table to cache prices retrieved by the polling worker to avoid duplicated external api requests
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS card_prices_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      playerSlug TEXT NOT NULL,
+      rarity TEXT NOT NULL,
+      season TEXT NOT NULL DEFAULT 'any',
+      price REAL,
+      currency TEXT,
+      playerPictureUrl TEXT,
+      updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(playerSlug, rarity, season)
+    )
+  `);
+
   console.log('Database initialized');
 }
 

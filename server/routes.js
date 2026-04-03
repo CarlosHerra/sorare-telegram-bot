@@ -1,9 +1,9 @@
 const express = require('express');
 const { getDb } = require('./db');
-const { searchPlayers, getCardPrice } = require('./services/sorare');
+const { searchPlayers } = require('./services/sorare');
 const { getMe } = require('./services/telegram');
 const { createPendingConnection, checkConnection } = require('./services/telegramConnection');
-const { authenticateToken } = require('./auth');
+const { authenticateToken, checkAlertOwnership } = require('./auth');
 const router = express.Router();
 
 // GET search players
@@ -16,30 +16,41 @@ router.get('/players/search', async (req, res) => {
     res.json(players);
 });
 
-// GET all alerts
-// GET all alerts
 router.get('/alerts', authenticateToken, async (req, res) => {
     const db = await getDb();
     const alerts = await db.all('SELECT * FROM alerts WHERE userId = ?', [req.user.userId]);
     
-    // Fetch current prices in parallel to return alongside the alert configurations
-    const { getEthToEurRate, convertCurrency } = require('./services/exchange');
-    const ethToEur = await getEthToEurRate() || 2500;
+    // Fetch exchange rate to apply conversions based on locally cached prices
+    const { getRates, convertCurrency } = require('./services/exchange');
+    const rates = await getRates();
     
+    // Resolve cached data for each alert seamlessly
     const alertsWithPrice = await Promise.all(alerts.map(async (alert) => {
         const { playerSlug, rarity, season, currency } = alert;
-        const currentData = await getCardPrice(playerSlug, rarity, season);
+        
+        // Grab values cleanly from the background cache instead of blocking external APIs
+        const cachedData = await db.get(
+            `SELECT price, currency as cachedCurrency, playerPictureUrl 
+             FROM card_prices_cache 
+             WHERE playerSlug = ? AND rarity = ? AND season = ?`,
+            [playerSlug, rarity, season || 'any']
+        );
+        
         let currentFloorPrice = null;
+        let playerPictureUrl = null;
 
-        if (currentData && currentData.price) {
-            const cardPriceConverted = convertCurrency(currentData.price, currentData.currency, currency, ethToEur);
-            currentFloorPrice = cardPriceConverted;
+        if (cachedData) {
+            playerPictureUrl = cachedData.playerPictureUrl;
+            if (cachedData.price) {
+                const cardPriceConverted = convertCurrency(cachedData.price, cachedData.cachedCurrency, currency, rates);
+                currentFloorPrice = cardPriceConverted;
+            }
         }
 
         return {
             ...alert,
             currentFloorPrice,
-            playerPictureUrl: currentData?.playerPictureUrl || null
+            playerPictureUrl
         };
     }));
 
@@ -63,17 +74,18 @@ router.post('/alerts', authenticateToken, async (req, res) => {
 });
 
 // DELETE alert
-router.delete('/alerts/:id', authenticateToken, async (req, res) => {
+router.delete('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, res) => {
     const { id } = req.params;
     const db = await getDb();
-    // Ensure the user owns the alert before deleting it
-    const result = await db.run('DELETE FROM alerts WHERE id = ? AND userId = ?', [id, req.user.userId]);
-    if (result.changes === 0) return res.status(404).json({ error: 'Alert not found or unauthorized' });
+    
+    // Existence and ownership are already verified by the middleware
+    await db.run('DELETE FROM alerts WHERE id = ?', [id]);
+    
     res.json({ message: 'Alert deleted' });
 });
 
 // PUT update alert
-router.put('/alerts/:id', authenticateToken, async (req, res) => {
+router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, res) => {
     const { id } = req.params;
     const { rarity, priceThreshold, currency, season } = req.body;
 
@@ -83,17 +95,13 @@ router.put('/alerts/:id', authenticateToken, async (req, res) => {
 
     const db = await getDb();
 
-    // Update the alert and increment version if the user owns it
-    const result = await db.run(
+    // Existence and ownership are already verified by the middleware
+    await db.run(
         `UPDATE alerts 
          SET rarity = ?, priceThreshold = ?, currency = ?, season = ?, version = version + 1 
-         WHERE id = ? AND userId = ?`,
-        [rarity, priceThreshold, currency || 'ETH', season || null, id, req.user.userId]
+         WHERE id = ?`,
+        [rarity, priceThreshold, currency || 'ETH', season || null, id]
     );
-
-    if (result.changes === 0) {
-        return res.status(404).json({ error: 'Alert not found or unauthorized' });
-    }
 
     res.json({ message: 'Alert updated and cooldown reset', id });
 });

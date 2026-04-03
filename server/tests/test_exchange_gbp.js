@@ -1,4 +1,4 @@
-const { getGbpToEurRate } = require('./services/exchange');
+const { getGbpToEurRate } = require('../services/exchange');
 
 async function test() {
     console.log("Fetching GBP to EUR rate...");

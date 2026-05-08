@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
         const urlError = params.get('auth_error');
 
         if (urlToken) {
+            localStorage.setItem('token', urlToken);
             setToken(urlToken);
             window.history.replaceState({}, document.title, window.location.pathname);
         } else if (urlError) {
@@ -57,6 +58,7 @@ export const AuthProvider = ({ children }) => {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Invalid credentials');
+        localStorage.setItem('token', data.token);
         setToken(data.token);
     };
 
@@ -68,6 +70,7 @@ export const AuthProvider = ({ children }) => {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Registration failed');
+        localStorage.setItem('token', data.token);
         setToken(data.token);
     };
 

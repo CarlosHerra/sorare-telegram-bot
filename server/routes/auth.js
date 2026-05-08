@@ -107,7 +107,7 @@ router.post('/register', async (req, res) => {
         const db = await getDb();
         const hashedPassword = await bcrypt.hash(password, 10);
         const result = await db.run(
-            'INSERT INTO users (email, passwordHash) VALUES (?, ?)',
+            'INSERT INTO users (email, passwordHash) VALUES (LOWER(?), ?)',
             [email, hashedPassword]
         );
         const token = generateToken(result.lastID);
@@ -130,7 +130,7 @@ router.post('/login', async (req, res) => {
 
     try {
         const db = await getDb();
-        const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+        const user = await db.get('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [email]);
         if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
         const match = await bcrypt.compare(password, user.passwordHash);
@@ -158,6 +158,7 @@ router.get('/me', authenticateToken, async (req, res) => {
         if (!user) return res.status(404).json({ error: 'User not found' });
         res.json(user);
     } catch (error) {
+        console.error('Error fetching user profile:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -172,6 +173,55 @@ router.put('/me', authenticateToken, async (req, res) => {
         await db.run('UPDATE users SET telegramChatId = ?, sorareUsername = ? WHERE id = ?', [telegramChatId, sorareUsername, req.user.userId]);
         res.json({ message: 'Profile updated' });
     } catch (error) {
+        console.error('Error updating user profile:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+/**
+ * PUT /auth/password — Change user password.
+ */
+router.put('/password', authenticateToken, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Missing current or new password' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    try {
+        const db = await getDb();
+        const user = await db.get('SELECT passwordHash FROM users WHERE id = ?', [req.user.userId]);
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // If the user has a password, verify it
+        if (user.passwordHash) {
+            const match = await bcrypt.compare(currentPassword, user.passwordHash);
+            if (!match) {
+                return res.status(401).json({ error: 'Incorrect current password' });
+            }
+        }
+        // If the user doesn't have a password (e.g. OAuth only), we might allow setting it, 
+        // but since we require currentPassword, we could skip the check if they didn't have one,
+        // or we could just say "Incorrect current password" if they typed something.
+        // Actually, let's just let it fail at compare if passwordHash is null? No, bcrypt.compare will throw an error.
+        else if (currentPassword !== '') {
+             // For OAuth users who didn't have a password, we might just accept anything or require it to be empty.
+             // We'll just allow setting a password if they don't have one, ignoring currentPassword.
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await db.run('UPDATE users SET passwordHash = ? WHERE id = ?', [hashedPassword, req.user.userId]);
+        
+        res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+        console.error('Error changing password:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

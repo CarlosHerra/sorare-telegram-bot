@@ -21,6 +21,13 @@ function App() {
     const [telegramChatId, setTelegramChatId] = useState('');
     const [sorareUsername, setSorareUsername] = useState('');
 
+    // Password change states
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordMessage, setPasswordMessage] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+
     useEffect(() => {
         if (user) {
             setTelegramChatId(user.telegramChatId || '');
@@ -67,6 +74,35 @@ function App() {
             setShowProfile(false);
         } catch (error) {
             alert('Failed to update profile: ' + error.message);
+        }
+    };
+
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        setPasswordMessage('');
+        setPasswordError('');
+
+        if (newPassword !== confirmPassword) {
+            setPasswordError('New passwords do not match');
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            setPasswordError('New password must be at least 6 characters');
+            return;
+        }
+
+        try {
+            await apiFetch('/auth/password', {
+                method: 'PUT',
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+            setPasswordMessage('Password updated successfully');
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error) {
+            setPasswordError(error.message);
         }
     };
 
@@ -223,6 +259,60 @@ function App() {
                                 className="w-full bg-sorare-accent hover:opacity-90 text-white font-bold py-3 rounded-lg transition-all"
                             >
                                 Save Profile
+                            </button>
+                        </form>
+
+                        <hr className="border-sorare-border my-6" />
+
+                        <h3 className="text-xl font-bold text-white mb-4">Change Password</h3>
+                        
+                        {passwordMessage && (
+                            <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-lg mb-4 text-sm text-center">
+                                {passwordMessage}
+                            </div>
+                        )}
+                        {passwordError && (
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg mb-4 text-sm text-center">
+                                {passwordError}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleChangePassword} className="space-y-4">
+                            <div>
+                                <label className="block text-gray-400 mb-2 font-medium text-sm">Current Password</label>
+                                <input
+                                    type="password"
+                                    className="w-full bg-sorare-dark border border-sorare-border rounded-lg p-3 text-white focus:ring-2 focus:ring-sorare-accent focus:border-transparent transition-all"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    placeholder="Leave empty if you don't have one"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-400 mb-2 font-medium text-sm">New Password</label>
+                                <input
+                                    type="password"
+                                    className="w-full bg-sorare-dark border border-sorare-border rounded-lg p-3 text-white focus:ring-2 focus:ring-sorare-accent focus:border-transparent transition-all"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-gray-400 mb-2 font-medium text-sm">Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    className="w-full bg-sorare-dark border border-sorare-border rounded-lg p-3 text-white focus:ring-2 focus:ring-sorare-accent focus:border-transparent transition-all"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                className="w-full bg-white/5 border border-sorare-border hover:border-sorare-accent/50 text-white font-bold py-3 rounded-lg transition-all"
+                            >
+                                Update Password
                             </button>
                         </form>
                     </div>

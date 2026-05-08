@@ -70,7 +70,7 @@ async function initDb() {
   } catch (e) { }
 
   try {
-    await db.run('ALTER TABLE users ADD COLUMN sorareSlug TEXT UNIQUE');
+    await db.run('ALTER TABLE users ADD COLUMN sorareSlug TEXT');
     console.log('Added sorareSlug column to users table');
   } catch (e) { }
 

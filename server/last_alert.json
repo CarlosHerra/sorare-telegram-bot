@@ -1,20 +1,20 @@
 {
-  "price": 0.0127,
-  "currency": "ETH",
-  "cardSlug": "ademola-lookman-2025-rare-29",
-  "cardPictureUrl": "https://assets.sorare.com/card/7758446b-0b4b-4fb7-9a71-06e07d8b3f40/picture/tinified-19d304da53d2b8fb5fec9e93e51a6291.png",
-  "playerPictureUrl": "https://assets.sorare.com/playerpicture/7f249dd0-959d-4323-b004-02e15b013268/picture/avatar-0fc680b02582cbb780f5fe830445d447.png",
-  "serialNumber": 29,
+  "price": 3.45,
+  "currency": "GBP",
+  "cardSlug": "rayan-ait-nouri-2025-limited-452",
+  "cardPictureUrl": "https://assets.sorare.com/card/5b4f2ebd-c836-466e-8908-ebdcb54dbf9f/picture/tinified-6abacf4cc9bb537b44eb395b74d3d113.png",
+  "playerPictureUrl": "https://assets.sorare.com/playerpicture/b028274f-2a92-4048-b4bf-67e283072374/picture/avatar-8955fc599399f88caac4f8983058468a.png",
+  "serialNumber": 452,
   "seasonYear": 2025,
-  "rarity": "rare",
-  "playerDisplayName": "Ademola Lookman",
+  "rarity": "limited",
+  "playerDisplayName": "Rayan Aït Nouri",
   "titleText": "🚨 PRICE ALERT 🚨",
   "threshold": {
-    "amount": 26,
+    "amount": 4,
     "currency": "EUR"
   },
   "currentPrice": {
-    "amount": 24.681815,
+    "amount": 3.972308882643805,
     "currency": "EUR"
   }
 }

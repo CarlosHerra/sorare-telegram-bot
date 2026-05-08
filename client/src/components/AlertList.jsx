@@ -55,8 +55,8 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
             ) : (
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                     {alerts.map((alert) => (
-                        <div key={alert.id} className="group flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-sorare-cardHover border border-sorare-border hover:border-sorare-accent/50 p-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-sorare-accent/5">
-                            <div className="flex items-center gap-4 w-full sm:w-auto overflow-hidden">
+                        <div key={alert.id} className="group flex flex-col gap-4 bg-sorare-cardHover border border-sorare-border hover:border-sorare-accent/50 p-5 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-sorare-accent/5">
+                            <div className="flex items-center gap-4 flex-1 overflow-hidden">
                                 <div className="relative h-10 w-10 shrink-0">
                                     {alert.playerPictureUrl ? (
                                         <img 
@@ -71,7 +71,7 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-lg text-white group-hover:text-sorare-accent transition-colors truncate">
+                                    <p className="font-bold text-lg text-white group-hover:text-sorare-accent transition-colors break-words" title={alert.playerSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}>
                                         {alert.playerSlug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                                     </p>
                                     <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -97,7 +97,7 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 opacity-100 sm:opacity-60 group-hover:opacity-100 transition-all self-end sm:self-auto shrink-0">
+                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-sorare-border/50 opacity-100 sm:opacity-60 group-hover:opacity-100 transition-all mt-auto shrink-0">
                                 <button
                                     onClick={() => onEdit(alert)}
                                     className="p-2 text-sorare-accent hover:bg-sorare-accent/10 rounded-lg transition-all"

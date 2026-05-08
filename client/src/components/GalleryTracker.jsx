@@ -159,7 +159,7 @@ function GalleryTracker() {
                                         </div>
                                     )}
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-white font-bold truncate text-sm" title={card.playerDisplayName}>
+                                        <h3 className="text-white font-bold break-words text-sm" title={card.playerDisplayName}>
                                             {card.playerDisplayName}
                                         </h3>
                                         <div className="flex items-center gap-2 mt-1">

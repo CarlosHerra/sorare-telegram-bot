@@ -61,14 +61,18 @@ router.get('/alerts', authenticateToken, async (req, res) => {
 // POST create alert
 router.post('/alerts', authenticateToken, async (req, res) => {
     const { playerSlug, rarity, priceThreshold, currency, season } = req.body;
-    if (!playerSlug || !rarity || !priceThreshold) {
+    if (!playerSlug || !rarity || priceThreshold === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const numPrice = parseFloat(priceThreshold);
+    if (isNaN(numPrice) || numPrice < 0) {
+        return res.status(400).json({ error: 'Invalid price threshold' });
     }
 
     const db = await getDb();
     const result = await db.run(
         'INSERT INTO alerts (playerSlug, rarity, priceThreshold, currency, season, userId, telegramChatId) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [playerSlug, rarity, priceThreshold, currency || 'ETH', season || null, req.user.userId, '']
+        [playerSlug, rarity, numPrice, currency || 'ETH', season || null, req.user.userId, '']
     );
 
     res.status(201).json({ id: result.lastID, ...req.body, userId: req.user.userId });
@@ -90,8 +94,12 @@ router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, re
     const { id } = req.params;
     const { rarity, priceThreshold, currency, season } = req.body;
 
-    if (!rarity || !priceThreshold) {
+    if (!rarity || priceThreshold === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
+    }
+    const numPrice = parseFloat(priceThreshold);
+    if (isNaN(numPrice) || numPrice < 0) {
+        return res.status(400).json({ error: 'Invalid price threshold' });
     }
 
     const db = await getDb();
@@ -101,7 +109,7 @@ router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, re
         `UPDATE alerts 
          SET rarity = ?, priceThreshold = ?, currency = ?, season = ?, version = version + 1 
          WHERE id = ?`,
-        [rarity, priceThreshold, currency || 'ETH', season || null, id]
+        [rarity, numPrice, currency || 'ETH', season || null, id]
     );
 
     res.json({ message: 'Alert updated and cooldown reset', id });
@@ -151,13 +159,21 @@ router.post('/gallery/global-config', authenticateToken, async (req, res) => {
     const { rarity, thresholdValue, currency, enabled } = req.body;
     if (!rarity) return res.status(400).json({ error: 'Missing rarity' });
     
+    let numThreshold = null;
+    if (thresholdValue !== undefined && thresholdValue !== null && thresholdValue !== '') {
+        numThreshold = parseFloat(thresholdValue);
+        if (isNaN(numThreshold) || numThreshold < 0) {
+            return res.status(400).json({ error: 'Invalid threshold value' });
+        }
+    }
+    
     const db = await getDb();
     await db.run(
         `INSERT INTO gallery_global_config (userId, rarity, thresholdValue, currency, enabled)
          VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(userId, rarity) 
          DO UPDATE SET thresholdValue=excluded.thresholdValue, currency=excluded.currency, enabled=excluded.enabled`,
-        [req.user.userId, rarity, thresholdValue || null, currency || 'ETH', enabled ? 1 : 0]
+        [req.user.userId, rarity, numThreshold, currency || 'ETH', enabled ? 1 : 0]
     );
     res.json({ message: 'Global config updated' });
 });
@@ -172,13 +188,21 @@ router.post('/gallery/card-tracking', authenticateToken, async (req, res) => {
     const { playerSlug, rarity, thresholdValue, currency, enabled } = req.body;
     if (!playerSlug || !rarity) return res.status(400).json({ error: 'Missing playerSlug or rarity' });
 
+    let numThreshold = null;
+    if (thresholdValue !== undefined && thresholdValue !== null && thresholdValue !== '') {
+        numThreshold = parseFloat(thresholdValue);
+        if (isNaN(numThreshold) || numThreshold < 0) {
+            return res.status(400).json({ error: 'Invalid threshold value' });
+        }
+    }
+
     const db = await getDb();
     await db.run(
         `INSERT INTO gallery_card_tracking (userId, playerSlug, rarity, thresholdValue, currency, enabled)
          VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT(userId, playerSlug, rarity)
          DO UPDATE SET thresholdValue=excluded.thresholdValue, currency=excluded.currency, enabled=excluded.enabled`,
-        [req.user.userId, playerSlug, rarity, thresholdValue || null, currency || 'ETH', enabled ? 1 : 0]
+        [req.user.userId, playerSlug, rarity, numThreshold, currency || 'ETH', enabled ? 1 : 0]
     );
     res.json({ message: 'Card tracking updated' });
 });

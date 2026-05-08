@@ -1,9 +1,14 @@
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: require('path').join(__dirname, envFile) });
 const { getDb } = require('./db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_development_do_not_use_in_prod';
 
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret_for_development_do_not_use_in_prod')) {
+    console.error('FATAL ERROR: JWT_SECRET is not defined in production environment. Ensure it is set in .env');
+    process.exit(1);
+}
 function generateToken(userId) {
     return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
 }

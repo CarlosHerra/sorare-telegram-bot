@@ -10,9 +10,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - FRONTEND_URL=/
+    env_file:
+      - ./server/.env.production
     volumes:
-      # Map the specific .env file to keep API keys
-      - ./server/.env:/app/server/.env
       # Map the SQLite file so progress and alerts are not lost when restarting
       - ./server/database.sqlite:/app/server/database.sqlite
+

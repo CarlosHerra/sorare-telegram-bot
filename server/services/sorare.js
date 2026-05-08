@@ -221,4 +221,70 @@ async function getExchangeRates() {
   }
 }
 
-module.exports = { getCardPrice, searchPlayers, getBatchedCardPrices, getExchangeRates };
+const USER_GALLERY_QUERY = gql`
+  query GetUserGallery($slug: String!, $cursor: String) {
+    user(slug: $slug) {
+      paginatedCards(first: 50, after: $cursor) {
+        nodes {
+          player {
+            slug
+            displayName
+            pictureUrl: avatarPictureUrl
+          }
+          slug
+          rarityTyped
+          seasonYear
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+`;
+
+async function getUserGallery(slug) {
+  try {
+    const apiKey = process.env.SORARE_API_KEY;
+    const headers = {};
+    if (apiKey) {
+      headers['APIKEY'] = apiKey;
+    }
+    const client = new GraphQLClient(ENDPOINT, { headers });
+    let allCards = [];
+    let hasNextPage = true;
+    let cursor = null;
+
+    while (hasNextPage) {
+      const variables = { slug, cursor };
+      const data = await client.request(USER_GALLERY_QUERY, variables);
+      
+      const paginatedCards = data?.user?.paginatedCards;
+      if (!paginatedCards) break;
+
+      allCards = allCards.concat(paginatedCards.nodes);
+      
+      hasNextPage = paginatedCards.pageInfo.hasNextPage;
+      cursor = paginatedCards.pageInfo.endCursor;
+
+      // Safe guard against infinite loops or huge galleries
+      if (allCards.length >= 1000) break;
+    }
+
+    return allCards.map(c => ({
+      cardSlug: c.slug,
+      playerSlug: c.player?.slug,
+      playerDisplayName: c.player?.displayName,
+      playerPictureUrl: c.player?.pictureUrl,
+      rarity: c.rarityTyped,
+      seasonYear: c.seasonYear
+    }));
+
+  } catch (error) {
+    console.error('Error fetching user gallery:', error.message);
+    return [];
+  }
+}
+
+module.exports = { getCardPrice, searchPlayers, getBatchedCardPrices, getExchangeRates, getUserGallery };

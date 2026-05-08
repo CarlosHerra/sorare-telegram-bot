@@ -1,0 +1,20 @@
+{
+  "price": 0.0127,
+  "currency": "ETH",
+  "cardSlug": "ademola-lookman-2025-rare-29",
+  "cardPictureUrl": "https://assets.sorare.com/card/7758446b-0b4b-4fb7-9a71-06e07d8b3f40/picture/tinified-19d304da53d2b8fb5fec9e93e51a6291.png",
+  "playerPictureUrl": "https://assets.sorare.com/playerpicture/7f249dd0-959d-4323-b004-02e15b013268/picture/avatar-0fc680b02582cbb780f5fe830445d447.png",
+  "serialNumber": 29,
+  "seasonYear": 2025,
+  "rarity": "rare",
+  "playerDisplayName": "Ademola Lookman",
+  "titleText": "🚨 PRICE ALERT 🚨",
+  "threshold": {
+    "amount": 26,
+    "currency": "EUR"
+  },
+  "currentPrice": {
+    "amount": 24.681815,
+    "currency": "EUR"
+  }
+}

@@ -46,7 +46,8 @@ async function sendMessage(chatId, message) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: chatId,
-                text: message
+                text: message,
+                parse_mode: 'HTML'
             })
         });
         const data = await response.json();
@@ -74,23 +75,32 @@ async function sendPhotoAlert(chatId, alertData) {
         return false;
     }
 
+    require('fs').writeFileSync('last_alert.json', JSON.stringify(alertData, null, 2));
+
     const {
         playerDisplayName,
         cardSlug,
+        cardPictureUrl,
         pictureUrl,
+        playerPictureUrl,
         serialNumber,
         seasonYear,
         rarity,
         currentPrice,
-        threshold
+        threshold,
+        titleText
     } = alertData;
+
+    // Use cardPictureUrl (from getCardPrice), fall back to pictureUrl or player avatar
+    const photoUrl = cardPictureUrl || pictureUrl || playerPictureUrl;
 
     // Build card details string
     const seasonDisplay = seasonYear ? `${seasonYear}-${(seasonYear + 1).toString().slice(-2)}` : '';
     const cardDetails = `${playerDisplayName} ${seasonDisplay} • ${rarity} ${serialNumber || ''}`.trim();
 
     // Build HTML caption
-    const caption = `🚨 <b>Price Alert</b>
+    const displayTitle = titleText || '🚨 <b>Price Alert</b>';
+    const caption = `${displayTitle}
 
 <b>${playerDisplayName}</b>
 ${cardDetails}
@@ -98,7 +108,7 @@ ${cardDetails}
 💰 <b>Current Price:</b> ${currentPrice.amount.toFixed(2)} ${currentPrice.currency}
 🎯 <b>Threshold:</b> ${threshold.amount.toFixed(2)} ${threshold.currency}
 
-🔗 <a href="https://sorare.com/cards/${cardSlug}">View on Sorare</a>`;
+🔗 <a href="https://sorare.com/football/cards/${cardSlug}">View on Sorare</a>`;
 
     const url = `https://api.telegram.org/bot${token}/sendPhoto`;
     try {
@@ -107,7 +117,7 @@ ${cardDetails}
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: chatId,
-                photo: pictureUrl,
+                photo: photoUrl,
                 caption: caption,
                 parse_mode: 'HTML'
             })
@@ -116,7 +126,7 @@ ${cardDetails}
         if (!data.ok) {
             console.error('Telegram API error in photo:', data);
             // Fallback to text message if photo fails
-            return await sendMessage(chatId, caption.replace(/<[^>]*>/g, ''));
+            return await sendMessage(chatId, caption);
         } else {
             console.log(`Photo alert sent to ${chatId}`);
             return true;
@@ -124,7 +134,7 @@ ${cardDetails}
     } catch (error) {
         console.error('Error sending Telegram photo:', error);
         // Fallback to text message
-        return await sendMessage(chatId, caption.replace(/<[^>]*>/g, ''));
+        return await sendMessage(chatId, caption);
     }
 }
 

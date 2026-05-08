@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import AlertForm from './components/AlertForm';
 import AlertList from './components/AlertList';
 import Login from './components/Login';
+import GalleryTracker from './components/GalleryTracker';
 import { useAuth } from './contexts/AuthContext';
 import { apiFetch } from './api/apiClient';
 
 function App() {
     const { token, user, loading, logout, fetchUser } = useAuth();
+    const [activeTab, setActiveTab] = useState('sniper');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [editingAlert, setEditingAlert] = useState(null);
     const [showProfile, setShowProfile] = useState(false);
@@ -17,10 +19,12 @@ function App() {
     const [botUsername, setBotUsername] = useState('');
     const [pollInterval, setPollInterval] = useState(null);
     const [telegramChatId, setTelegramChatId] = useState('');
+    const [sorareUsername, setSorareUsername] = useState('');
 
     useEffect(() => {
-        if (user && user.telegramChatId) {
-            setTelegramChatId(user.telegramChatId);
+        if (user) {
+            setTelegramChatId(user.telegramChatId || '');
+            setSorareUsername(user.sorareUsername || '');
         }
     }, [user]);
 
@@ -57,7 +61,7 @@ function App() {
         try {
             await apiFetch('/auth/me', {
                 method: 'PUT',
-                body: JSON.stringify({ telegramChatId })
+                body: JSON.stringify({ telegramChatId, sorareUsername })
             });
             await fetchUser();
             setShowProfile(false);
@@ -107,7 +111,7 @@ function App() {
                         onClick={() => setShowProfile(true)}
                         className="text-sm border border-sorare-border px-4 py-2 rounded-lg hover:border-sorare-accent hover:text-sorare-accent transition-all flex items-center gap-2"
                     >
-                        {user?.telegramChatId ? <span className="text-green-500">✓ Linked</span> : <span className="text-yellow-500">Profile Settings</span>}
+                        {user?.telegramChatId ? <span className="text-green-500">✓ Profile</span> : <span className="text-yellow-500">Profile Settings</span>}
                     </button>
                     <button
                         onClick={logout}
@@ -117,11 +121,12 @@ function App() {
                     </button>
                 </div>
                 <div className="text-center pt-8 animate-fade-in">
+                    <img src="/logo.png" alt="Sorare Sniper" className="w-20 h-20 mx-auto mb-4 rounded-2xl shadow-lg shadow-sorare-accent/20" />
                     <h1 className="text-6xl font-black text-white mb-4 tracking-tight">
                         Sorare <span className="text-transparent bg-clip-text bg-gradient-to-r from-sorare-accent to-sorare-secondary">Sniper</span>
                     </h1>
                     <p className="text-sorare-muted text-xl max-w-xl mx-auto leading-relaxed">
-                        Welcome {user?.email}! Automate your market strategy. Get instant alerts via Telegram.
+                        Welcome <strong className="text-white">{user?.sorareSlug || user?.sorareUsername || user?.email}</strong>! Automate your market strategy. Get instant alerts via Telegram.
                     </p>
                 </div>
             </header>
@@ -198,6 +203,21 @@ function App() {
                                 </p>
                             </div>
 
+                            <div>
+                                <label className="block text-gray-400 mb-2 font-medium">Sorare Username</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-sorare-dark border border-sorare-border rounded-lg p-3 text-white focus:ring-2 focus:ring-sorare-accent focus:border-transparent transition-all"
+                                    placeholder="Enter your Sorare slug"
+                                    value={sorareUsername}
+                                    onChange={(e) => setSorareUsername(e.target.value)}
+                                />
+                                <p className="text-xs text-sorare-muted mt-2">
+                                    Required for the Gallery Tracker feature.
+                                </p>
+                            </div>
+
+
                             <button
                                 type="submit"
                                 className="w-full bg-sorare-accent hover:opacity-90 text-white font-bold py-3 rounded-lg transition-all"
@@ -209,21 +229,55 @@ function App() {
                 </div>
             )}
 
-            <main className="w-full mx-auto space-y-8">
-                <div className="max-w-5xl mx-auto">
-                    <AlertForm
-                        onAlertCreated={handleAlertCreated}
-                        editingAlert={editingAlert}
-                        onCancelEdit={handleCancelEdit}
-                    />
-                </div>
-                <div className="max-w-screen-2xl mx-auto">
-                    <AlertList
-                        refreshTrigger={refreshTrigger}
-                        onEdit={handleEdit}
-                    />
-                </div>
-            </main>
+            {/* Sidebar & Main Content Layout */}
+            <div className="flex flex-col md:flex-row gap-8 max-w-screen-2xl mx-auto">
+                
+                {/* Navigation Sidebar */}
+                <aside className="w-full md:w-64 shrink-0 flex flex-col gap-4">
+                    <div className="bg-sorare-card border border-sorare-border rounded-xl p-4 flex flex-col gap-2">
+                        <button 
+                            onClick={() => setActiveTab('sniper')}
+                            className={`text-left px-4 py-3 rounded-lg font-bold transition-all ${activeTab === 'sniper' ? 'bg-sorare-accent text-white' : 'text-sorare-muted hover:bg-sorare-dark/50'}`}
+                        >
+                            🎯 Market Sniper
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('gallery')}
+                            className={`text-left px-4 py-3 rounded-lg font-bold transition-all ${activeTab === 'gallery' ? 'bg-sorare-accent text-white' : 'text-sorare-muted hover:bg-sorare-dark/50'}`}
+                        >
+                            <span className="flex items-center justify-between">
+                                🖼️ Gallery Tracker
+                                <span className="bg-sorare-secondary text-white text-[10px] px-2 py-1 rounded-full ml-2">NEW</span>
+                            </span>
+                        </button>
+                    </div>
+                </aside>
+
+                {/* Main Content Area */}
+                <main className="flex-1 w-full space-y-8">
+                    {activeTab === 'sniper' && (
+                        <>
+                            <div className="max-w-5xl mx-auto">
+                                <AlertForm
+                                    onAlertCreated={handleAlertCreated}
+                                    editingAlert={editingAlert}
+                                    onCancelEdit={handleCancelEdit}
+                                />
+                            </div>
+                            <div className="mx-auto">
+                                <AlertList
+                                    refreshTrigger={refreshTrigger}
+                                    onEdit={handleEdit}
+                                />
+                            </div>
+                        </>
+                    )}
+                    
+                    {activeTab === 'gallery' && (
+                        <GalleryTracker />
+                    )}
+                </main>
+            </div>
 
             <footer className="max-w-4xl mx-auto mt-20 text-center text-sorare-muted text-sm pb-10">
                 <p>© 2026 Sorare Sniper. Not affiliated with Sorare SAS.</p>

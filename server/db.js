@@ -23,6 +23,7 @@ async function initDb() {
       passwordHash TEXT,
       googleId TEXT,
       telegramChatId TEXT,
+      sorareUsername TEXT,
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -61,6 +62,31 @@ async function initDb() {
   try {
     await db.run('ALTER TABLE alerts ADD COLUMN userId INTEGER');
     console.log('Added userId column to alerts table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE users ADD COLUMN sorareUsername TEXT');
+    console.log('Added sorareUsername column to users table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE users ADD COLUMN sorareSlug TEXT UNIQUE');
+    console.log('Added sorareSlug column to users table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE users ADD COLUMN sorareJwtToken TEXT');
+    console.log('Added sorareJwtToken column to users table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE users ADD COLUMN sorareAvatarUrl TEXT');
+    console.log('Added sorareAvatarUrl column to users table');
+  } catch (e) { }
+
+  try {
+    await db.run('ALTER TABLE users ADD COLUMN sorareRefreshToken TEXT');
+    console.log('Added sorareRefreshToken column to users table');
   } catch (e) { }
 
   try {
@@ -111,6 +137,32 @@ async function initDb() {
   `);
 
   console.log('Database initialized');
+
+  // Gallery tracker tables
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS gallery_global_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      rarity TEXT NOT NULL,
+      thresholdValue REAL,
+      currency TEXT DEFAULT 'ETH',
+      enabled INTEGER DEFAULT 0,
+      UNIQUE(userId, rarity)
+    )
+  `);
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS gallery_card_tracking (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      playerSlug TEXT NOT NULL,
+      rarity TEXT NOT NULL,
+      thresholdValue REAL,
+      currency TEXT DEFAULT 'ETH',
+      enabled INTEGER DEFAULT 0,
+      UNIQUE(userId, playerSlug, rarity)
+    )
+  `);
 }
 
 module.exports = { getDb, initDb };

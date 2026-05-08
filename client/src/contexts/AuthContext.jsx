@@ -9,6 +9,22 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
+    const [authError, setAuthError] = useState(null);
+
+    // On mount: pick up token or error from OAuth callback URL params
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const urlToken = params.get('token');
+        const urlError = params.get('auth_error');
+
+        if (urlToken) {
+            setToken(urlToken);
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (urlError) {
+            setAuthError(decodeURIComponent(urlError));
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, []);
 
     useEffect(() => {
         if (token) {
@@ -55,12 +71,20 @@ export const AuthProvider = ({ children }) => {
         setToken(data.token);
     };
 
+    const clearAuthError = () => setAuthError(null);
+
     const logout = () => {
         setToken(null);
+        setAuthError(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, loading, login, register, logout, fetchUser }}>
+        <AuthContext.Provider value={{
+            user, token, loading,
+            authError, clearAuthError,
+            login, register,
+            logout, fetchUser
+        }}>
             {children}
         </AuthContext.Provider>
     );

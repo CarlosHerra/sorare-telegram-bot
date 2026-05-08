@@ -18,11 +18,12 @@ description: Reglas base de arquitectura, convenciones y estilo de código para 
 
 ## 🏗️ Patrones de diseño obligatorios y Estructura
 *   **Estructura de carpetas:** 
-    *   [Ej: `client/src/` para componentes visuales]
-    *   [Ej: `server/services/` para lógica de negocio e integraciones]
-    *   [Ej: `server/routes.js` y controladores para la capa de red]
-*   **Inyección de dependencias / Gestión de estado:** [Ej: Context API en Frontend, paso de instancias de DB o servicios en Backend]
-*   **Manejo de errores:** [Ej: Todo manejado por un middleware central, respuestas tipadas estandarizadas]
+    *   `client/src/components/` para componentes visuales (ej. GalleryTracker).
+    *   `server/services/` para lógica de negocio e integraciones (ej. sorare.js, telegram.js).
+    *   `server/routes.js` y controladores de red.
+    *   `server/worker.js` para los procesos de polling en background (verificando alertas y trackeo de galería).
+*   **Gestión de estado:** Context API en Frontend (ej. AuthContext).
+*   **Manejo de errores:** Respuestas JSON estructuradas con `{ error: 'Message' }`.
 
 ## 🧪 Reglas de testing
 *   **Frameworks:** [Ej: Jest para backend, React Testing Library para frontend]

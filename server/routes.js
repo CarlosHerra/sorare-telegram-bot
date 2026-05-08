@@ -4,6 +4,7 @@ const { searchPlayers } = require('./services/sorare');
 const { getMe } = require('./services/telegram');
 const { createPendingConnection, checkConnection } = require('./services/telegramConnection');
 const { authenticateToken, checkAlertOwnership } = require('./auth');
+const { getUserGallery } = require('./services/sorare');
 const router = express.Router();
 
 // GET search players
@@ -125,6 +126,61 @@ router.get('/telegram/check-code/:code', (req, res) => {
     const { code } = req.params;
     const chatId = checkConnection(code.toUpperCase());
     res.json({ chatId });
+});
+
+// Gallery Tracker Routes
+router.get('/gallery/cards', authenticateToken, async (req, res) => {
+    const db = await getDb();
+    const user = await db.get('SELECT sorareUsername FROM users WHERE id = ?', [req.user.userId]);
+    
+    if (!user || !user.sorareUsername) {
+        return res.status(400).json({ error: 'Sorare username is not configured.' });
+    }
+
+    const gallery = await getUserGallery(user.sorareUsername);
+    res.json(gallery);
+});
+
+router.get('/gallery/global-config', authenticateToken, async (req, res) => {
+    const db = await getDb();
+    const configs = await db.all('SELECT * FROM gallery_global_config WHERE userId = ?', [req.user.userId]);
+    res.json(configs);
+});
+
+router.post('/gallery/global-config', authenticateToken, async (req, res) => {
+    const { rarity, thresholdValue, currency, enabled } = req.body;
+    if (!rarity) return res.status(400).json({ error: 'Missing rarity' });
+    
+    const db = await getDb();
+    await db.run(
+        `INSERT INTO gallery_global_config (userId, rarity, thresholdValue, currency, enabled)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(userId, rarity) 
+         DO UPDATE SET thresholdValue=excluded.thresholdValue, currency=excluded.currency, enabled=excluded.enabled`,
+        [req.user.userId, rarity, thresholdValue || null, currency || 'ETH', enabled ? 1 : 0]
+    );
+    res.json({ message: 'Global config updated' });
+});
+
+router.get('/gallery/card-tracking', authenticateToken, async (req, res) => {
+    const db = await getDb();
+    const trackers = await db.all('SELECT * FROM gallery_card_tracking WHERE userId = ?', [req.user.userId]);
+    res.json(trackers);
+});
+
+router.post('/gallery/card-tracking', authenticateToken, async (req, res) => {
+    const { playerSlug, rarity, thresholdValue, currency, enabled } = req.body;
+    if (!playerSlug || !rarity) return res.status(400).json({ error: 'Missing playerSlug or rarity' });
+
+    const db = await getDb();
+    await db.run(
+        `INSERT INTO gallery_card_tracking (userId, playerSlug, rarity, thresholdValue, currency, enabled)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(userId, playerSlug, rarity)
+         DO UPDATE SET thresholdValue=excluded.thresholdValue, currency=excluded.currency, enabled=excluded.enabled`,
+        [req.user.userId, playerSlug, rarity, thresholdValue || null, currency || 'ETH', enabled ? 1 : 0]
+    );
+    res.json({ message: 'Card tracking updated' });
 });
 
 module.exports = router;

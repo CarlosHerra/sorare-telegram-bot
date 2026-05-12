@@ -1,20 +1,20 @@
 {
-  "price": 3.45,
-  "currency": "GBP",
-  "cardSlug": "rayan-ait-nouri-2025-limited-452",
-  "cardPictureUrl": "https://assets.sorare.com/card/5b4f2ebd-c836-466e-8908-ebdcb54dbf9f/picture/tinified-6abacf4cc9bb537b44eb395b74d3d113.png",
-  "playerPictureUrl": "https://assets.sorare.com/playerpicture/b028274f-2a92-4048-b4bf-67e283072374/picture/avatar-8955fc599399f88caac4f8983058468a.png",
-  "serialNumber": 452,
-  "seasonYear": 2025,
-  "rarity": "limited",
-  "playerDisplayName": "Rayan Aït Nouri",
+  "price": 0.0212,
+  "currency": "ETH",
+  "cardSlug": "hyun-woo-cho-2026-rare-25",
+  "cardPictureUrl": "https://assets.sorare.com/card/8430b497-0864-459f-8918-309fb66d4e37/picture/tinified-fb7f39e75927fa424a0706c95395aaf3.png",
+  "playerPictureUrl": "https://assets.sorare.com/playerpicture/47cdea30-7038-4edd-ade8-3a3ca1dcd589/picture/avatar-8e8c384ab0c5f0d64be70b70f4c08102.png",
+  "serialNumber": 25,
+  "seasonYear": 2026,
+  "rarity": "rare",
+  "playerDisplayName": "Jo Hyeon-Woo",
   "titleText": "🚨 PRICE ALERT 🚨",
   "threshold": {
-    "amount": 4,
+    "amount": 50,
     "currency": "EUR"
   },
   "currentPrice": {
-    "amount": 3.972308882643805,
+    "amount": 40.899676,
     "currency": "EUR"
   }
 }

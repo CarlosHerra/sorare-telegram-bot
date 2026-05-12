@@ -3,6 +3,51 @@ const { getGbpToEurRate } = require('./exchange');
 
 const ENDPOINT = 'https://api.sorare.com/graphql';
 
+/**
+ * Compute the current Sorare season start year.
+ * Football seasons span Aug-Jul, so if we're in Aug+ it's currentYear, otherwise currentYear-1.
+ */
+function getCurrentSeasonYear() {
+  const now = new Date();
+  return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+}
+
+/**
+ * Build the season years array for a given cardType and optional specific season.
+ * Priority: specific season > cardType > no filter.
+ * - season specified → [season] (overrides cardType)
+ * - 'in_season' → [currentSeason]
+ * - 'classic' → [2015..currentSeason-1]
+ * - null/undefined/'any' → undefined (no filter, returns all)
+ */
+function getSeasonYearsForCardType(cardType, season = null) {
+  // Specific year overrides cardType
+  if (season) {
+    return [parseInt(season)];
+  }
+  const current = getCurrentSeasonYear();
+  if (cardType === 'in_season') {
+    return [current];
+  }
+  if (cardType === 'classic') {
+    const years = [];
+    for (let y = 2015; y < current; y++) years.push(y);
+    return years;
+  }
+  return undefined; // No filter — any season
+}
+
+/**
+ * Build a consistent cache key from cardType and season.
+ * - season specified → the year string (e.g. '2021')
+ * - cardType only → cardType (e.g. 'in_season', 'classic')
+ * - neither → 'any'
+ */
+function buildCacheKey(cardType, season) {
+  if (season) return String(season);
+  return cardType || 'any';
+}
+
 const QUERY = gql`
   query GetMinListingPrice($slug: String!, $rarity: [Rarity!], $season: [Int!]) {
     anyPlayer(slug: $slug) {
@@ -37,7 +82,7 @@ const QUERY = gql`
   }
 `;
 
-async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
+async function getCardPrice(playerSlug, rarity, cardType = null, season = null) {
   try {
     const apiKey = process.env.SORARE_API_KEY;
     const headers = {};
@@ -54,12 +99,12 @@ async function getCardPrice(playerSlug, rarity, seasonFilter = null) {
       rarity: [formattedRarity]
     };
 
-    // Add season filter if specified
-    if (seasonFilter && seasonFilter !== 'any') {
-      variables.season = [parseInt(seasonFilter)];
-    } else {
-      variables.season = []; // Empty array means any season
+    // Add season filter: specific season overrides cardType
+    const seasonYears = getSeasonYearsForCardType(cardType, season);
+    if (seasonYears) {
+      variables.season = seasonYears;
     }
+    // When seasonYears is undefined, we omit the season key entirely → API returns all seasons
 
     const data = await client.request(QUERY, variables);
 
@@ -175,17 +220,18 @@ async function getBatchedCardPrices(requests) {
   if (!requests || requests.length === 0) return {};
 
   try {
-    console.log(`Processing batch of ${requests.length} unique player/rarity/season combinations in parallel...`);
+    console.log(`Processing batch of ${requests.length} unique player/rarity/cardType combinations in parallel...`);
     
     // Execute all requests concurrently using Promise.all
     // Each request is still an individual HTTP call, which bypasses the "Duplicated root field" error.
-    const promises = requests.map(req => 
-      getCardPrice(req.playerSlug, req.rarity, req.season)
+    const promises = requests.map(req => {
+      const cacheKey = buildCacheKey(req.cardType, req.season);
+      return getCardPrice(req.playerSlug, req.rarity, req.cardType, req.season)
         .then(result => ({ 
-          key: `${req.playerSlug}-${req.rarity}-${req.season || 'any'}`, 
+          key: `${req.playerSlug}-${req.rarity}-${cacheKey}`, 
           result 
-        }))
-    );
+        }));
+    });
 
     const rawResults = await Promise.all(promises);
     const results = {};
@@ -287,4 +333,4 @@ async function getUserGallery(slug) {
   }
 }
 
-module.exports = { getCardPrice, searchPlayers, getBatchedCardPrices, getExchangeRates, getUserGallery };
+module.exports = { getCardPrice, searchPlayers, getBatchedCardPrices, getExchangeRates, getUserGallery, buildCacheKey };

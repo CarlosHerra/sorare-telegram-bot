@@ -8,6 +8,7 @@ export default function AlertForm({ onAlertCreated, editingAlert, onCancelEdit }
         rarity: 'limited',
         priceThreshold: '',
         currency: 'EUR',
+        cardType: '',
         season: ''
     });
 
@@ -21,13 +22,15 @@ export default function AlertForm({ onAlertCreated, editingAlert, onCancelEdit }
                 rarity: editingAlert.rarity,
                 priceThreshold: editingAlert.priceThreshold.toString(),
                 currency: editingAlert.currency,
-                season: editingAlert.season || ''
+                cardType: editingAlert.cardType || '',
+                season: editingAlert.season ? editingAlert.season.toString() : ''
             });
         } else {
             setFormData(prev => ({
                 ...prev,
                 player: null,
                 priceThreshold: '',
+                cardType: '',
                 season: ''
             }));
             setFormKey(prev => prev + 1);
@@ -64,6 +67,7 @@ export default function AlertForm({ onAlertCreated, editingAlert, onCancelEdit }
                     rarity: 'limited',
                     priceThreshold: '',
                     currency: 'EUR',
+                    cardType: '',
                     season: ''
                 });
                 setFormKey(prev => prev + 1);
@@ -144,17 +148,35 @@ export default function AlertForm({ onAlertCreated, editingAlert, onCancelEdit }
                 </div>
 
                 <div>
-                    <label className="block text-gray-400 mb-2 font-medium">Season (Optional)</label>
-                    <input
-                        type="number"
-                        min="2018"
-                        max="2030"
+                    <label className="block text-gray-400 mb-2 font-medium">Card Type</label>
+                    <select
+                        value={formData.cardType}
+                        onChange={(e) => setFormData({ ...formData, cardType: e.target.value, season: e.target.value === 'in_season' ? '' : formData.season })}
                         className="w-full bg-sorare-dark border border-sorare-border rounded-lg p-3 text-white focus:ring-2 focus:ring-sorare-accent focus:border-transparent transition-all"
-                        placeholder="e.g. 2023"
-                        value={formData.season || ''}
-                        onChange={(e) => setFormData({ ...formData, season: e.target.value })}
-                    />
+                    >
+                        <option value="">All Cards</option>
+                        <option value="in_season">🟢 In-Season Only</option>
+                        <option value="classic">🟡 Classic Only</option>
+                    </select>
                 </div>
+
+                {formData.cardType !== 'in_season' && (
+                    <div>
+                        <label className="block text-gray-400 mb-2 font-medium">Season Year <span className="text-sorare-muted text-xs">(optional)</span></label>
+                        <input
+                            type="number"
+                            min="2015"
+                            max="2030"
+                            className="w-full bg-sorare-dark border border-sorare-border rounded-lg p-3 text-white focus:ring-2 focus:ring-sorare-accent focus:border-transparent transition-all"
+                            placeholder="e.g. 2021"
+                            value={formData.season}
+                            onChange={(e) => setFormData({ ...formData, season: e.target.value })}
+                        />
+                        <p className="text-xs text-sorare-muted mt-1">
+                            {formData.cardType === 'classic' ? 'Filter classics to a specific year' : 'Leave empty for any year'}
+                        </p>
+                    </div>
+                )}
             </div>
 
             <button

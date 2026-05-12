@@ -94,6 +94,23 @@ async function initDb() {
     console.log('Added version column to alerts table');
   } catch (e) { }
 
+  // Migration: add cardType column to alerts
+  try {
+    await db.run('ALTER TABLE alerts ADD COLUMN cardType TEXT');
+    console.log('Added cardType column to alerts table');
+
+    // Migrate existing data: compute current season year
+    const now = new Date();
+    const currentSeason = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    
+    // Alerts with season = current year → in_season
+    await db.run('UPDATE alerts SET cardType = ? WHERE season = ?', ['in_season', currentSeason]);
+    // Alerts with a specific past season → classic (exclude future seasons)
+    await db.run('UPDATE alerts SET cardType = ? WHERE season IS NOT NULL AND season < ? AND cardType IS NULL', ['classic', currentSeason]);
+    // Alerts with no season remain cardType = null (meaning "any")
+    console.log('Migrated existing alerts to cardType');
+  } catch (e) { }
+
   try {
     await db.run('ALTER TABLE sent_alerts ADD COLUMN alertVersion INTEGER DEFAULT 1');
     console.log('Added alertVersion column to sent_alerts table');

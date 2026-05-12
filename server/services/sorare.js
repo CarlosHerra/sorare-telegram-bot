@@ -13,12 +13,18 @@ function getCurrentSeasonYear() {
 }
 
 /**
- * Build the season years array for a given cardType.
+ * Build the season years array for a given cardType and optional specific season.
+ * Priority: specific season > cardType > no filter.
+ * - season specified → [season] (overrides cardType)
  * - 'in_season' → [currentSeason]
  * - 'classic' → [2015..currentSeason-1]
  * - null/undefined/'any' → undefined (no filter, returns all)
  */
-function getSeasonYearsForCardType(cardType) {
+function getSeasonYearsForCardType(cardType, season = null) {
+  // Specific year overrides cardType
+  if (season) {
+    return [parseInt(season)];
+  }
   const current = getCurrentSeasonYear();
   if (cardType === 'in_season') {
     return [current];
@@ -29,6 +35,17 @@ function getSeasonYearsForCardType(cardType) {
     return years;
   }
   return undefined; // No filter — any season
+}
+
+/**
+ * Build a consistent cache key from cardType and season.
+ * - season specified → the year string (e.g. '2021')
+ * - cardType only → cardType (e.g. 'in_season', 'classic')
+ * - neither → 'any'
+ */
+function buildCacheKey(cardType, season) {
+  if (season) return String(season);
+  return cardType || 'any';
 }
 
 const QUERY = gql`
@@ -65,7 +82,7 @@ const QUERY = gql`
   }
 `;
 
-async function getCardPrice(playerSlug, rarity, cardType = null) {
+async function getCardPrice(playerSlug, rarity, cardType = null, season = null) {
   try {
     const apiKey = process.env.SORARE_API_KEY;
     const headers = {};
@@ -82,8 +99,8 @@ async function getCardPrice(playerSlug, rarity, cardType = null) {
       rarity: [formattedRarity]
     };
 
-    // Add season filter based on cardType
-    const seasonYears = getSeasonYearsForCardType(cardType);
+    // Add season filter: specific season overrides cardType
+    const seasonYears = getSeasonYearsForCardType(cardType, season);
     if (seasonYears) {
       variables.season = seasonYears;
     }
@@ -207,13 +224,14 @@ async function getBatchedCardPrices(requests) {
     
     // Execute all requests concurrently using Promise.all
     // Each request is still an individual HTTP call, which bypasses the "Duplicated root field" error.
-    const promises = requests.map(req => 
-      getCardPrice(req.playerSlug, req.rarity, req.cardType)
+    const promises = requests.map(req => {
+      const cacheKey = buildCacheKey(req.cardType, req.season);
+      return getCardPrice(req.playerSlug, req.rarity, req.cardType, req.season)
         .then(result => ({ 
-          key: `${req.playerSlug}-${req.rarity}-${req.cardType || 'any'}`, 
+          key: `${req.playerSlug}-${req.rarity}-${cacheKey}`, 
           result 
-        }))
-    );
+        }));
+    });
 
     const rawResults = await Promise.all(promises);
     const results = {};
@@ -315,4 +333,4 @@ async function getUserGallery(slug) {
   }
 }
 
-module.exports = { getCardPrice, searchPlayers, getBatchedCardPrices, getExchangeRates, getUserGallery };
+module.exports = { getCardPrice, searchPlayers, getBatchedCardPrices, getExchangeRates, getUserGallery, buildCacheKey };

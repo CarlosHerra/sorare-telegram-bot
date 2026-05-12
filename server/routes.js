@@ -1,6 +1,6 @@
 const express = require('express');
 const { getDb } = require('./db');
-const { searchPlayers } = require('./services/sorare');
+const { searchPlayers, buildCacheKey } = require('./services/sorare');
 const { getMe } = require('./services/telegram');
 const { createPendingConnection, checkConnection } = require('./services/telegramConnection');
 const { authenticateToken, checkAlertOwnership } = require('./auth');
@@ -27,14 +27,15 @@ router.get('/alerts', authenticateToken, async (req, res) => {
     
     // Resolve cached data for each alert seamlessly
     const alertsWithPrice = await Promise.all(alerts.map(async (alert) => {
-        const { playerSlug, rarity, cardType, currency } = alert;
+        const { playerSlug, rarity, cardType, season, currency } = alert;
+        const cacheKeyVal = buildCacheKey(cardType, season);
         
         // Grab values cleanly from the background cache instead of blocking external APIs
         const cachedData = await db.get(
             `SELECT price, currency as cachedCurrency, playerPictureUrl 
              FROM card_prices_cache 
              WHERE playerSlug = ? AND rarity = ? AND season = ?`,
-            [playerSlug, rarity, cardType || 'any']
+            [playerSlug, rarity, cacheKeyVal]
         );
         
         let currentFloorPrice = null;
@@ -60,7 +61,7 @@ router.get('/alerts', authenticateToken, async (req, res) => {
 
 // POST create alert
 router.post('/alerts', authenticateToken, async (req, res) => {
-    const { playerSlug, rarity, priceThreshold, currency, cardType } = req.body;
+    const { playerSlug, rarity, priceThreshold, currency, cardType, season } = req.body;
     if (!playerSlug || !rarity || priceThreshold === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -70,15 +71,20 @@ router.post('/alerts', authenticateToken, async (req, res) => {
     }
 
     // Validate cardType
-    const validCardTypes = ['in_season', 'classic', null, undefined, ''];
     if (cardType && !['in_season', 'classic'].includes(cardType)) {
         return res.status(400).json({ error: 'Invalid card type. Must be in_season, classic, or empty for any.' });
     }
 
+    // Validate season
+    const numSeason = season ? parseInt(season) : null;
+    if (season && (isNaN(numSeason) || numSeason < 2015 || numSeason > 2030)) {
+        return res.status(400).json({ error: 'Invalid season year. Must be between 2015 and 2030.' });
+    }
+
     const db = await getDb();
     const result = await db.run(
-        'INSERT INTO alerts (playerSlug, rarity, priceThreshold, currency, cardType, userId, telegramChatId) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [playerSlug, rarity, numPrice, currency || 'ETH', cardType || null, req.user.userId, '']
+        'INSERT INTO alerts (playerSlug, rarity, priceThreshold, currency, cardType, season, userId, telegramChatId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [playerSlug, rarity, numPrice, currency || 'ETH', cardType || null, numSeason, req.user.userId, '']
     );
 
     res.status(201).json({ id: result.lastID, ...req.body, userId: req.user.userId });
@@ -98,7 +104,7 @@ router.delete('/alerts/:id', authenticateToken, checkAlertOwnership, async (req,
 // PUT update alert
 router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, res) => {
     const { id } = req.params;
-    const { rarity, priceThreshold, currency, cardType } = req.body;
+    const { rarity, priceThreshold, currency, cardType, season } = req.body;
 
     if (!rarity || priceThreshold === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -113,14 +119,20 @@ router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, re
         return res.status(400).json({ error: 'Invalid card type. Must be in_season, classic, or empty for any.' });
     }
 
+    // Validate season
+    const numSeason = season ? parseInt(season) : null;
+    if (season && (isNaN(numSeason) || numSeason < 2015 || numSeason > 2030)) {
+        return res.status(400).json({ error: 'Invalid season year. Must be between 2015 and 2030.' });
+    }
+
     const db = await getDb();
 
     // Existence and ownership are already verified by the middleware
     await db.run(
         `UPDATE alerts 
-         SET rarity = ?, priceThreshold = ?, currency = ?, cardType = ?, version = version + 1 
+         SET rarity = ?, priceThreshold = ?, currency = ?, cardType = ?, season = ?, version = version + 1 
          WHERE id = ?`,
-        [rarity, numPrice, currency || 'ETH', cardType || null, id]
+        [rarity, numPrice, currency || 'ETH', cardType || null, numSeason, id]
     );
 
     res.json({ message: 'Alert updated and cooldown reset', id });

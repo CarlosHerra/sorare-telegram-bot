@@ -98,6 +98,11 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                                             {alert.rarity}
                                         </span>
                                         {getCardTypeBadge(alert.cardType)}
+                                        {alert.season && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold border bg-gray-800 border-gray-600 text-gray-300 whitespace-nowrap">
+                                                {alert.season}
+                                            </span>
+                                        )}
                                         <span className="text-xs sm:text-sm text-sorare-muted flex flex-wrap items-center gap-x-1 mt-1 xl:mt-0">
                                             <span>Below <span className="text-white font-mono font-bold">{alert.priceThreshold} {alert.currency}</span></span>
                                             {alert.currentFloorPrice !== undefined && (

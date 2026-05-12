@@ -105,8 +105,8 @@ async function initDb() {
     
     // Alerts with season = current year → in_season
     await db.run('UPDATE alerts SET cardType = ? WHERE season = ?', ['in_season', currentSeason]);
-    // Alerts with a specific past season → classic
-    await db.run('UPDATE alerts SET cardType = ? WHERE season IS NOT NULL AND season != ? AND cardType IS NULL', ['classic', currentSeason]);
+    // Alerts with a specific past season → classic (exclude future seasons)
+    await db.run('UPDATE alerts SET cardType = ? WHERE season IS NOT NULL AND season < ? AND cardType IS NULL', ['classic', currentSeason]);
     // Alerts with no season remain cardType = null (meaning "any")
     console.log('Migrated existing alerts to cardType');
   } catch (e) { }

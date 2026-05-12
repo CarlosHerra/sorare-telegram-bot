@@ -40,6 +40,25 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
         }
     }
 
+    const getCardTypeBadge = (cardType) => {
+        switch (cardType) {
+            case 'in_season':
+                return (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold border bg-emerald-900/40 border-emerald-500/40 text-emerald-300 whitespace-nowrap">
+                        🟢 IN-SEASON
+                    </span>
+                );
+            case 'classic':
+                return (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold border bg-amber-900/40 border-amber-500/40 text-amber-300 whitespace-nowrap">
+                        🟡 CLASSIC
+                    </span>
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="bg-sorare-card border border-sorare-border p-8 rounded-2xl shadow-xl animate-fade-in">
             <h2 className="text-xl font-bold mb-6 text-sorare-text flex items-center gap-2">
@@ -78,11 +97,7 @@ const AlertList = ({ refreshTrigger, onEdit }) => {
                                         <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold border ${getRarityColor(alert.rarity)} uppercase tracking-wider whitespace-nowrap`}>
                                             {alert.rarity}
                                         </span>
-                                        {alert.season && (
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-bold border bg-gray-800 border-gray-600 text-gray-300 whitespace-nowrap">
-                                                {alert.season}
-                                            </span>
-                                        )}
+                                        {getCardTypeBadge(alert.cardType)}
                                         <span className="text-xs sm:text-sm text-sorare-muted flex flex-wrap items-center gap-x-1 mt-1 xl:mt-0">
                                             <span>Below <span className="text-white font-mono font-bold">{alert.priceThreshold} {alert.currency}</span></span>
                                             {alert.currentFloorPrice !== undefined && (

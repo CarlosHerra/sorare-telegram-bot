@@ -87,15 +87,15 @@ async function checkAlerts() {
     const groupedAlerts = {};
     const uniqueRequests = [];
     for (const alert of allActiveAlerts) {
-        const key = `${alert.playerSlug}-${alert.rarity}-${alert.season || 'any'}`;
+        const key = `${alert.playerSlug}-${alert.rarity}-${alert.cardType || 'any'}`;
         if (!groupedAlerts[key]) {
             groupedAlerts[key] = {
                 playerSlug: alert.playerSlug,
                 rarity: alert.rarity,
-                season: alert.season,
+                cardType: alert.cardType,
                 alerts: []
             };
-            uniqueRequests.push({ playerSlug: alert.playerSlug, rarity: alert.rarity, season: alert.season });
+            uniqueRequests.push({ playerSlug: alert.playerSlug, rarity: alert.rarity, cardType: alert.cardType });
         }
         groupedAlerts[key].alerts.push(alert);
     }
@@ -117,7 +117,7 @@ async function checkAlerts() {
         const group = groupedAlerts[key];
         if (!group) continue;
 
-        const { playerSlug, rarity, season, alerts: groupAlerts } = group;
+        const { playerSlug, rarity, cardType, alerts: groupAlerts } = group;
 
         if (currentData) {
             // Upsert to Cache
@@ -127,7 +127,7 @@ async function checkAlerts() {
                      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                      ON CONFLICT(playerSlug, rarity, season)
                      DO UPDATE SET price=excluded.price, currency=excluded.currency, playerPictureUrl=excluded.playerPictureUrl, updatedAt=CURRENT_TIMESTAMP`,
-                    [playerSlug, rarity, season || 'any', currentData.price || null, currentData.currency || null, currentData.playerPictureUrl || null]
+                    [playerSlug, rarity, cardType || 'any', currentData.price || null, currentData.currency || null, currentData.playerPictureUrl || null]
                 );
             } catch (cacheErr) {
                 console.error('Error writing to cache:', cacheErr);

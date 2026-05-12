@@ -27,14 +27,14 @@ router.get('/alerts', authenticateToken, async (req, res) => {
     
     // Resolve cached data for each alert seamlessly
     const alertsWithPrice = await Promise.all(alerts.map(async (alert) => {
-        const { playerSlug, rarity, season, currency } = alert;
+        const { playerSlug, rarity, cardType, currency } = alert;
         
         // Grab values cleanly from the background cache instead of blocking external APIs
         const cachedData = await db.get(
             `SELECT price, currency as cachedCurrency, playerPictureUrl 
              FROM card_prices_cache 
              WHERE playerSlug = ? AND rarity = ? AND season = ?`,
-            [playerSlug, rarity, season || 'any']
+            [playerSlug, rarity, cardType || 'any']
         );
         
         let currentFloorPrice = null;
@@ -60,7 +60,7 @@ router.get('/alerts', authenticateToken, async (req, res) => {
 
 // POST create alert
 router.post('/alerts', authenticateToken, async (req, res) => {
-    const { playerSlug, rarity, priceThreshold, currency, season } = req.body;
+    const { playerSlug, rarity, priceThreshold, currency, cardType } = req.body;
     if (!playerSlug || !rarity || priceThreshold === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -69,10 +69,16 @@ router.post('/alerts', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Invalid price threshold' });
     }
 
+    // Validate cardType
+    const validCardTypes = ['in_season', 'classic', null, undefined, ''];
+    if (cardType && !['in_season', 'classic'].includes(cardType)) {
+        return res.status(400).json({ error: 'Invalid card type. Must be in_season, classic, or empty for any.' });
+    }
+
     const db = await getDb();
     const result = await db.run(
-        'INSERT INTO alerts (playerSlug, rarity, priceThreshold, currency, season, userId, telegramChatId) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [playerSlug, rarity, numPrice, currency || 'ETH', season || null, req.user.userId, '']
+        'INSERT INTO alerts (playerSlug, rarity, priceThreshold, currency, cardType, userId, telegramChatId) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [playerSlug, rarity, numPrice, currency || 'ETH', cardType || null, req.user.userId, '']
     );
 
     res.status(201).json({ id: result.lastID, ...req.body, userId: req.user.userId });
@@ -92,7 +98,7 @@ router.delete('/alerts/:id', authenticateToken, checkAlertOwnership, async (req,
 // PUT update alert
 router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, res) => {
     const { id } = req.params;
-    const { rarity, priceThreshold, currency, season } = req.body;
+    const { rarity, priceThreshold, currency, cardType } = req.body;
 
     if (!rarity || priceThreshold === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -102,14 +108,19 @@ router.put('/alerts/:id', authenticateToken, checkAlertOwnership, async (req, re
         return res.status(400).json({ error: 'Invalid price threshold' });
     }
 
+    // Validate cardType
+    if (cardType && !['in_season', 'classic'].includes(cardType)) {
+        return res.status(400).json({ error: 'Invalid card type. Must be in_season, classic, or empty for any.' });
+    }
+
     const db = await getDb();
 
     // Existence and ownership are already verified by the middleware
     await db.run(
         `UPDATE alerts 
-         SET rarity = ?, priceThreshold = ?, currency = ?, season = ?, version = version + 1 
+         SET rarity = ?, priceThreshold = ?, currency = ?, cardType = ?, version = version + 1 
          WHERE id = ?`,
-        [rarity, numPrice, currency || 'ETH', season || null, id]
+        [rarity, numPrice, currency || 'ETH', cardType || null, id]
     );
 
     res.json({ message: 'Alert updated and cooldown reset', id });
